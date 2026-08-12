@@ -1,79 +1,84 @@
-<!-- Table 'keenetic_routers' edit -->
-<form action="?" method="post" enctype="multipart/form-data" name="frmEdit" class="form-horizontal">
-[#if OK#]
-<div class="alert alert-success"><#LANG_DATA_SAVED#></div>
-[#endif OK#]
-[#if ERR#]
-<div class="alert alert-danger"><#LANG_FILLOUT_REQURED#></div>
-[#endif ERR#]
-<fieldset>
-[#if ID=""#]
-<legend><#LANG_NEW_RECORD#></legend>
-[#endif ID#]
-<div class="form-group">
-<div class="table-responsive">
-<table class="table table-striped">
- <tr>
-  <td><b><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=TITLE"><#LANG_TITLE#></a></br></td>
-  <td><b><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=MAC">MAC</a><br></td>
-  <td><b><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=IP">IP</a><br></td>
-  <td><b><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=STATUS">Статус</a><br></td>
-  <td><b><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=TYPE_CONNECT">&nbsp;Тип&nbsp;</a><br></td>
-  <td><b><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=REGISTERED" title="Статус регистрации устройства на роутере">Рег</a><br></td>
-  <td><b><#LANG_LINKED_OBJECT#><br></td>
-  <td><b><#LANG_LINKED_PROPERTY#><br></td>
-  <td><b><#LANG_METHOD#><br></td>
-  <td valign="top"><#LANG_UPDATED#></td>
-  <td>&nbsp;</td>
- </tr>
- [#begin PROPERTIES#]
- <tr>
-  [#if TITLE=='Интернет'#]
-  <td valign="top">&nbsp;&nbsp;&nbsp;[#TITLE#]</td>
-  [#else TITLE#]
-  <td valign="top"><input type="text" class="form-control" name="title[#ID#]" id="title[#ID#]" value="[#TITLE#]"></td>
-  [#endif TITLE#]
-  <td valign="top">[#MAC#]</td>
-  <td valign="top"><a href="http://[#IP#]" target="_blank">[#IP#]</a></td>
-  <td class="text-center">[#if STATUS>0#]<span class="label label-success" title="Статус устройства">ONLINE</span>
-		[#else#]<a href="?id=<#ID#>&tab=<#TAB#>&view_mode=<#VIEW_MODE#>&wol_id=[#ID#]" onclick="return confirm('Отправить пакет WOL?');" class="label label-danger" title="Статус устройства">OFFLINE</a>
-		[#endif STATUS#]</td>
-  <td valign="top" class="text-center">[#if TYPE_CONNECT==0#]<span><b>LAN</b></span>
-		[#else#]<span><b>Wi-Fi</b></span>
-		[#endif TYPE_CONNECT#]</td>
-  <td valign="top" class="text-center">[#if REGISTERED==0#]<a href="?id=<#ID#>&tab=<#TAB#>&view_mode=<#VIEW_MODE#>&register_id=[#ID#]" onClick="return confirm('Зарегистрировать устройство на роутере?');" class="label label-warning" title="Устройство не зарегистрировано"><b>&nbsp;</b></a>
-		[#else#]<span class="label label-success" title="Устройство зарегистрировано">&nbsp;</span>
-		[#endif REGISTERED#]</td>
-  <td valign="top"><input type="text" name="linked_object[#ID#]" id="linked_object[#ID#]" value="[#LINKED_OBJECT#]"></td>
-  <td valign="top"><input type="text" name="linked_property[#ID#]" id="linked_property[#ID#]" value="[#LINKED_PROPERTY#]"></td>
-  <td valign="top"><input type="text" name="linked_method[#ID#]" id="linked_method[#ID#]" value="[#LINKED_METHOD#]"></td>
-  [#module name="linkedobject" object_field="linked_object<#PROPERTIES.ID#>" property_field="linked_property<#PROPERTIES.ID#>" method_field="linked_method<#PROPERTIES.ID#>" width="150"#]
-  <td valign="top">[#UPDATED#]</td>
-  <td><a href="?data_source=<#DATA_SOURCE#>&view_mode=info_keenetic_devices&id=[#ID#]" class="btn btn-default" title="Информация об устройстве"><i class="glyphicon glyphicon-info-sign"></i></a>
-   [#if TITLE!='Интернет'#]<a href="?id=<#ID#>&tab=<#TAB#>&view_mode=<#VIEW_MODE#>&delete_id=[#ID#]" onClick="return confirm('<#LANG_ARE_YOU_SURE#>');" class="btn btn-default"><i class="glyphicon glyphicon-remove"></i>[#endif TITLE#]</td>
- </tr>
- [#end PROPERTIES#]
-</table> 
-</div>
-</div>
-<div class="form-group">
-        <div class="col-lg-offset-3 col-lg-4">
- [#if ID!=""#]
- <button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_SUBMIT#></button>
- [#else ID#]
- <button type="submit" name="subm" value="Add" class="btn btn-primary"><#LANG_ADD#></button>
- [#endif ID#]
- <a href="?data_source=<#DATA_SOURCE#>" class="btn btn-default "><#LANG_CANCEL#></a>
-<input type="hidden" name="id" value="<#ID#>">
-<input type="hidden" name="view_mode" value="<#VIEW_MODE#>">
-<input type="hidden" name="edit_mode" value="<#EDIT_MODE#>">
-<input type="hidden" name="mode" value="update">
-<input type="hidden" name="data_source" value="<#DATA_SOURCE#>">
-<input type="hidden" name="tab" value="<#TAB#>">
-        </div>
-</div>
-</fieldset>
+<form action="?" method="post" enctype="multipart/form-data" name="frmEdit">
+	[#if OK#]
+	<div class="alert alert-success"><#LANG_DATA_SAVED#></div>
+	[#endif OK#]
+	[#if ERR#]
+	<div class="alert alert-danger"><#LANG_FILLOUT_REQURED#></div>
+	[#endif ERR#]
+
+	<div class="table-responsive">
+		<table class="table table-striped table-hover align-middle">
+			<thead>
+				<tr>
+					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=TITLE"><#LANG_TITLE#></a></th>
+					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=MAC">MAC</a></th>
+					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=IP">IP</a></th>
+					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=STATUS">Статус</a></th>
+					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=TYPE_CONNECT">Тип</a></th>
+					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=data&sortby=REGISTERED" title="Статус регистрации устройства на роутере">Рег.</a></th>
+					<th style="min-width: 220px;"><#LANG_LINKED_OBJECT#></th>
+					<th style="min-width: 220px;"><#LANG_LINKED_PROPERTY#></th>
+					<th style="min-width: 220px;"><#LANG_METHOD#></th>
+					<th><#LANG_UPDATED#></th>
+					<th class="text-end">&nbsp;</th>
+				</tr>
+			</thead>
+			<tbody>
+				[#begin PROPERTIES#]
+				<tr>
+					<td>
+						[#if TITLE=='Интернет'#]
+							<span class="fw-semibold">[#TITLE#]</span>
+						[#else TITLE#]
+							<input type="text" class="form-control" name="title[#ID#]" id="title[#ID#]" value="[#TITLE#]">
+						[#endif TITLE#]
+					</td>
+					<td class="text-nowrap">[#MAC#]</td>
+					<td>[#if IP!=""#]<a href="http://[#IP#]" target="_blank" rel="noopener noreferrer">[#IP#]</a>[#endif#]</td>
+					<td>
+						[#if STATUS>0#]
+							<span class="badge text-bg-success" title="Статус устройства">ONLINE</span>
+						[#else#]
+							<a href="?id=<#ID#>&tab=<#TAB#>&view_mode=<#VIEW_MODE#>&wol_id=[#ID#]" data-md-confirm="Отправить пакет WOL?" class="badge text-bg-danger text-decoration-none" title="Статус устройства">OFFLINE</a>
+						[#endif STATUS#]
+					</td>
+					<td>[#if TYPE_CONNECT==0#]<span class="badge text-bg-secondary">LAN</span>[#else#]<span class="badge text-bg-info">Wi-Fi</span>[#endif TYPE_CONNECT#]</td>
+					<td>
+						[#if REGISTERED==0#]
+							<a href="?id=<#ID#>&tab=<#TAB#>&view_mode=<#VIEW_MODE#>&register_id=[#ID#]" data-md-confirm="Зарегистрировать устройство на роутере?" class="badge text-bg-warning text-decoration-none" title="Устройство не зарегистрировано">Нет</a>
+						[#else#]
+							<span class="badge text-bg-success" title="Устройство зарегистрировано">Да</span>
+						[#endif REGISTERED#]
+					</td>
+					<td>[#module name="linkedobject" object_field="linked_object<#PROPERTIES.ID#>" uniq="keenetic_device<#PROPERTIES.ID#>" width="100%"#]</td>
+					<td>[#module name="linkedobject" property_field="linked_property<#PROPERTIES.ID#>" uniq="keenetic_device<#PROPERTIES.ID#>" width="100%"#]</td>
+					<td>[#module name="linkedobject" method_field="linked_method<#PROPERTIES.ID#>" uniq="keenetic_device<#PROPERTIES.ID#>" width="100%"#]</td>
+					<td class="text-nowrap">[#UPDATED#]</td>
+					<td class="text-end text-nowrap">
+						<a href="?data_source=<#DATA_SOURCE#>&view_mode=info_keenetic_devices&id=[#ID#]" class="btn btn-light btn-sm" title="Информация об устройстве">Инфо</a>
+						[#if TITLE!='Интернет'#]
+							<a href="?id=<#ID#>&tab=<#TAB#>&view_mode=<#VIEW_MODE#>&delete_id=[#ID#]" data-md-confirm="<#LANG_ARE_YOU_SURE#>" class="btn btn-outline-danger btn-sm"><#LANG_DELETE#></a>
+						[#endif TITLE#]
+					</td>
+				</tr>
+				[#end PROPERTIES#]
+			</tbody>
+		</table>
+	</div>
+
+	<div class="d-flex gap-2 mt-3">
+		[#if ID!=""#]
+		<button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_SUBMIT#></button>
+		[#else ID#]
+		<button type="submit" name="subm" value="Add" class="btn btn-primary"><#LANG_ADD#></button>
+		[#endif ID#]
+		<a href="?data_source=<#DATA_SOURCE#>" class="btn btn-outline-secondary"><#LANG_CANCEL#></a>
+	</div>
+
+	<input type="hidden" name="id" value="<#ID#>">
+	<input type="hidden" name="view_mode" value="<#VIEW_MODE#>">
+	<input type="hidden" name="edit_mode" value="<#EDIT_MODE#>">
+	<input type="hidden" name="mode" value="update">
+	<input type="hidden" name="data_source" value="<#DATA_SOURCE#>">
+	<input type="hidden" name="tab" value="<#TAB#>">
 </form>
-<!-- dataset2 (module) -->
-<div class="form-group">
-</div>

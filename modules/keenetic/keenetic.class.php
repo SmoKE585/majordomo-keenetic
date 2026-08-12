@@ -22,7 +22,7 @@ function __construct() {
   $this->module_category="<#LANG_SECTION_DEVICES#>";
   $this->checkInstalled();
   $this->getConfig();
-  $this->debug = $this->config['LOG_DEBMES'] == 1 ? true : false;
+  $this->debug = !empty($this->config['LOG_DEBMES']);
 }
 /**
 * saveParams
@@ -212,10 +212,21 @@ function api($params) {
  function edit_keenetic_routers(&$out, $id) {
   require(dirname(__FILE__).'/keenetic_routers_edit.inc.php');
  }
- 
+
  function info_keenetic_devices(&$out, $id) {
-	$rec = SQLSelectOne('SELECT * FROM keenetic_devices WHERE ID="'.$id.'"');
-	$router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ID="'.$rec['ROUTER_ID'].'"');
+	$rec = SQLSelectOne('SELECT * FROM keenetic_devices WHERE ID="'.(int)$id.'"');
+	if (empty($rec['ID'])) {
+		$out['ERR'] = 1;
+		$out['ERR_ALERT'] = 'Устройство не найдено';
+		return;
+	}
+	$router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ID="'.(int)$rec['ROUTER_ID'].'"');
+	if (empty($router['ID'])) {
+		$out['ERR'] = 1;
+		$out['ERR_ALERT'] = 'Роутер устройства не найден';
+		outHash($rec, $out);
+		return;
+	}
 	$track_device = gr('track_device');
 	if($track_device){
 		if($track_device==2) $track_device=0;
@@ -242,15 +253,12 @@ function api($params) {
 		$rec['SCRIPT'] = $code;
 		
 		if ($rec['SCRIPT'] != '') {
-			$errors = php_syntax_error($rec['SCRIPT']);
-			if ($errors) {
-				$out['ERR_LINE'] = preg_replace('/[^0-9]/', '', substr(stristr($errors, 'php on line '), 0, 18));
+			$errorMessage = $this->getUserCodeError($rec['SCRIPT']);
+			if ($errorMessage !== '') {
+				$out['ERR_LINE'] = preg_replace('/[^0-9]/', '', $errorMessage);
 				$out['ERR_CODE'] = 1;
-				$errorStr = explode('Parse error: ', htmlspecialchars(strip_tags(nl2br($errors))));
-				$errorStr = explode('Errors parsing', $errorStr[1]);
-				$errorStr = explode(' in ', $errorStr[0]);
-				$out['ERRORS'] = $errorStr[0];
-				$out['ERR_FULL'] = $errorStr[0].' '.$errorStr[1];
+				$out['ERRORS'] = $errorMessage;
+				$out['ERR_FULL'] = $errorMessage;
 				$out['ERR_OLD_CODE'] = $old_code;
 			}
 		}
@@ -261,23 +269,30 @@ function api($params) {
 	if($rec['MAC'] == "0.0.0.0.0.0"){
 		$interface = $this->getdata($router, 'show/interface');
 		$isp = $this->backupWAN($interface);
-		$uptime = $isp['UPTIME'];
-		$rec['NAME'] = $isp['NAME'];
-		$rec['ADDRESS'] = $isp['IP'];
+		$uptime = $isp['UPTIME'] ?? 0;
+		$rec['NAME'] = $isp['NAME'] ?? '';
+		$rec['ADDRESS'] = $isp['IP'] ?? '';
 	}
 	else{
 		if($router['MWS']) $mws =  '"mws": {"member": {}}, ';
 		else $mws = "";
 		$data = $this->getdata($router, '', '{"show": {'.$mws.'"ip": {"hotspot": {"mac": "'.$rec['MAC'].'"}}, "interface": {}}}');
-		$host = $data['show']['ip']['hotspot']['host'][0];
-		$interfaces = $router['MWS'] ? $data['show']['mws']['member'] : "";
-		$wifies = $data['show']['interface'];
+		$hosts = $this->normalizeRows($data['show']['ip']['hotspot']['host'] ?? []);
+		$host = $hosts[0] ?? [];
+		if (!$host) {
+			$out['ERR'] = 1;
+			$out['ERR_ALERT'] = 'Роутер не вернул данные по устройству';
+			outHash($rec, $out);
+			return;
+		}
+		$interfaces = $router['MWS'] ? ($data['show']['mws']['member'] ?? []) : [];
+		$wifies = $data['show']['interface'] ?? [];
 		$info = $this->parse_data($router, $host, $interfaces, $wifies);
 		$rec = array_merge($rec, $info);
-		$uptime = $rec['UPTIME'];
+		$uptime = $rec['UPTIME'] ?? 0;
 		unset($rec['UPTIME']);
-		$rec['RXBYTES'] = round($rec['RXBYTES']/1024/1024, 1);
-		$rec['TXBYTES'] = round($rec['TXBYTES']/1024/1024, 1);
+		$rec['RXBYTES'] = round(($rec['RXBYTES'] ?? 0)/1024/1024, 1);
+		$rec['TXBYTES'] = round(($rec['TXBYTES'] ?? 0)/1024/1024, 1);
 		if(isset($rec['ROUTER'])) $rec['ROUTER'] = $rec['ROUTER'].' '.$rec['FREQ'].' ('.$rec['NET'].')';
 	}
 	
@@ -308,7 +323,8 @@ function api($params) {
 * @access public
 */
  function delete_keenetic_routers($id) {
-  $rec=SQLSelectOne("SELECT * FROM keenetic_routers WHERE ID='$id'");
+  $rec=SQLSelectOne("SELECT * FROM keenetic_routers WHERE ID='".(int)$id."'");
+  if (empty($rec['ID'])) return;
   $this->delete_class($rec['TITLE']); //удаляем класс
   SQLExec("DELETE FROM keenetic_routers WHERE ID='".$rec['ID']."'");
   $properties = SQLSelect("SELECT * FROM keenetic_devices WHERE ROUTER_ID='".$rec['ID']."' AND LINKED_OBJECT != '' AND LINKED_PROPERTY != ''");
@@ -317,8 +333,10 @@ function api($params) {
 	}
   SQLExec("DELETE FROM keenetic_devices WHERE ROUTER_ID='".$rec['ID']."'");
 	$connections = SQLSelect("SELECT * FROM keenetic_connections WHERE ROUTER_ID='".$rec['ID']."' AND LINKED_OBJECT != '' AND LINKED_PROPERTY != ''");
-	foreach($connectioms as $connection) {
-		removeLinkedProperty($connection['LINKED_OBJECT'], $connection['LINKED_PROPERTY'], $this->name);
+	foreach($connections as $connection) {
+		if (!empty($connection['LINKED_OBJECT']) && !empty($connection['LINKED_PROPERTY'])) {
+			removeLinkedProperty($connection['LINKED_OBJECT'], $connection['LINKED_PROPERTY'], $this->name);
+		}
 	}
   SQLExec("DELETE FROM keenetic_connections WHERE ROUTER_ID='".$rec['ID']."'");
  }
@@ -379,8 +397,9 @@ function api($params) {
  function processCycle() {
  //$this->getConfig();
 	$routers = SQLSelect("SELECT * FROM keenetic_routers");
+	if (!is_array($routers)) return;
  	foreach($routers as $router){
-		if($router['REQ_PERIOD'] != 0 and time() - $router['REQ_UPDATE'] >= $router['REQ_PERIOD']){
+		if((int)$router['REQ_PERIOD'] != 0 and time() - (int)$router['REQ_UPDATE'] >= (int)$router['REQ_PERIOD']){
 			$update_router = 0;
 			if($router['MWS']) $mws =  ', "mws": {"member": {}}';
 			else $mws = "";
@@ -396,7 +415,7 @@ function api($params) {
 					$router['STATUS'] = 1;
 					$update_router = 1;
 				}
-				$components = explode(",", $getdata['show']['version']['ndw']['components']);
+				$components = explode(",", $getdata['show']['version']['ndw']['components'] ?? '');
 				$mws = 0;
 				foreach($components as $name) {
 					if($name == 'mws') $mws = 1;
@@ -405,8 +424,9 @@ function api($params) {
 					$router['MWS'] = $mws;
 					$update_router = 1;
 				}
-				if($router['FIRMWARE'] != $getdata['show']['version']['release']){
-					$router['FIRMWARE'] = $getdata['show']['version']['release'];
+				$firmwareRelease = $getdata['show']['version']['release'] ?? '';
+				if($firmwareRelease !== '' && $router['FIRMWARE'] != $firmwareRelease){
+					$router['FIRMWARE'] = $firmwareRelease;
 					$this->WriteLog('Прошивка на '.$router['TITLE'].' обновлена на версию '.$router['FIRMWARE']);
 					if(method_exists($this, 'sendnotification')) {
 						$this->sendnotification('Прошивка на '.$router['TITLE'].' обновлена на версию '.$router['FIRMWARE'].'.', 'info');
@@ -416,10 +436,26 @@ function api($params) {
 				}
 				$log = "";
 				$update = 0;
-				if($getdata['show']['system']['uptime'] > 180){ //если после загрузки роутера прошло более трех минут (для того, чтобы успел поднять подключение к интернету)
+				if((int)($getdata['show']['system']['uptime'] ?? 0) > 180){ //если после загрузки роутера прошло более трех минут (для того, чтобы успел поднять подключение к интернету)
 					$inet = SQLSelectOne('SELECT * FROM keenetic_devices WHERE MAC="0.0.0.0.0.0" AND ROUTER_ID="'.$router['ID'].'"');
-					if($getdata['show']['internet']['status']['internet'] != $router['INET_STATUS']){
-						if($getdata['show']['internet']['status']['internet']){
+					if (empty($inet['ID'])) {
+						$inet = [
+							'TITLE' => 'Интернет',
+							'MAC' => '0.0.0.0.0.0',
+							'IP' => '0.0.0.0',
+							'STATUS' => 0,
+							'TYPE_CONNECT' => 0,
+							'REGISTERED' => 1,
+							'ROUTER_ID' => $router['ID'],
+							'SCRIPT' => '',
+							'LOG' => '',
+							'UPDATED' => date('Y-m-d H:i:s'),
+						];
+						$inet['ID'] = SQLInsert('keenetic_devices', $inet);
+					}
+					$internetStatus = !empty($getdata['show']['internet']['status']['internet']) ? 1 : 0;
+					if($internetStatus != $router['INET_STATUS']){
+						if($internetStatus){
 							$router['INET_STATUS'] = 1;
 							$log = "восстановлено.";
 							ClearTimeOut('KeeneticReboot');
@@ -437,7 +473,7 @@ function api($params) {
 						$update_router = 1;
 					}
 					if($router['INET_STATUS']){ //если соединение с интернетом есть, проверяем через какой канал подключены
-						$state = $this->backupWAN($getdata['show']['interface']);//получаем активный интерфейс и IP-адрес
+						$state = $this->backupWAN($getdata['show']['interface'] ?? []);//получаем активный интерфейс и IP-адрес
 						if($state['STATE']){
 							if($inet['IP'] != $state['IP']){
 								$inet['IP'] = $state['IP'];
@@ -461,7 +497,7 @@ function api($params) {
 					}
 				}
 				if($update){
-					$inet['LOG'] = date('Y-m-d H:i:s')." Соединение с интернетом ".$log."\n".$inet['LOG'];
+					$inet['LOG'] = date('Y-m-d H:i:s')." Соединение с интернетом ".$log."\n".($inet['LOG'] ?? '');
 						while(substr_count($inet['LOG'], "\n") > 30){ //очищаем самые давние события, если их более 30
 							$inet['LOG'] = substr($inet['LOG'], 0, strrpos(trim($inet['LOG']), "\n"));
 						}
@@ -470,30 +506,21 @@ function api($params) {
 					SQLUpdate('keenetic_devices', $inet); //обновляем статус в таблице устройств
 					$this->setProperty($inet, $inet['STATUS']);//обновляем свойство
 					$status = (int)$inet['STATUS'];
-					$code = SQLSelectOne("SELECT SCRIPT FROM keenetic_devices WHERE ROUTER_ID='".$router['ID']."' and TITLE='Интернет'" )['SCRIPT'];
-						$errors = php_syntax_error($code);
-						if ($errors){
-							$line = preg_replace('/[^0-9]/', '', substr(stristr($errors, 'php on line '), 0, 18));
-							$errorStr = explode('Parse error: ', htmlspecialchars(strip_tags(nl2br($errors))));
-							$errorStr = explode('Errors parsing', $errorStr[1]);
-							$errorStr = explode(' in ', $errorStr[0]);
-							$errors = $errorStr[0].' on line '.$line;
-							$this->WriteLog("Ошибка в коде: ".$code);
-							registerError('Keenetic', "Error in code: " . $code. PHP_EOL . PHP_EOL . $errors . PHP_EOL);
-						}
-						else eval($code);
+					$code = SQLSelectOne("SELECT SCRIPT FROM keenetic_devices WHERE ROUTER_ID='".$router['ID']."' and TITLE='Интернет'" )['SCRIPT'] ?? '';
+					$this->executeUserCode($code, ['status' => $status, 'router' => $router, 'inet' => $inet], 'интернет-соединения');
 				}
 				//Соединения
 				$connectionindb = SQLSelect("SELECT * FROM keenetic_connections WHERE ROUTER_ID='".$router['ID']."'");
 				$connections = [];
 				$update = 0;
-				foreach($getdata['show']['interface'] as $connection){
-					if(!in_array($connection['type'], ["GigabitEthernet", "FastEthernet", "Port", "Vlan", "AccessPoint", "WifiMaster", "WifiStation", "Bridge"])){
+				foreach($this->normalizeRows($getdata['show']['interface'] ?? []) as $connection){
+					if(empty($connection['id'])) continue;
+					if(!in_array($connection['type'] ?? '', ["GigabitEthernet", "FastEthernet", "Port", "Vlan", "AccessPoint", "WifiMaster", "WifiStation", "Bridge"], true)){
 						$connections[$connection['id']] = $connection;
 					}
 				}
 				//dprint($connections,0);
-				foreach($connectionindb as $connection){
+				foreach((array)$connectionindb as $connection){
 					if(isset($connections[$connection['CONN_ID']])){
 						$connid = $connection['CONN_ID'];
 						if($connection['TITLE'] != $connections[$connid]['description']){
@@ -504,32 +531,22 @@ function api($params) {
 							$connection['ADDRESS'] = $connections[$connid]['address'] ?? '';
 							$update = 1;
 						}
-						if($connection['TYPE'] != $connections[$connid]['type']){
-							$connection['TYPE'] = $connections[$connid]['type'];
+						if($connection['TYPE'] != ($connections[$connid]['type'] ?? '')){
+							$connection['TYPE'] = $connections[$connid]['type'] ?? '';
 							$update = 1;
 						}
-						$stateconn = $connections[$connid]['state'] == "up" ? 1 : 0;
+						$stateconn = ($connections[$connid]['state'] ?? '') == "up" ? 1 : 0;
 						if($connection['STATE'] != $stateconn){
 							$connection['STATE'] = $stateconn;
 							$update = 1;
 						}
-						$state = $connections[$connid]['connected'] == "yes" ? 1 : 0;
+						$state = ($connections[$connid]['connected'] ?? '') == "yes" ? 1 : 0;
 						if($connection['STATUS'] != $state){
 							$connection['STATUS'] = $state;
 							$this->setProperty($connection, $state); //обновляем свойство
 							$name = $connection['TITLE'];
-							$code = $router['CNCT_SCRIPT'];
-							$errors = php_syntax_error($code);
-							if ($errors){
-								$line = preg_replace('/[^0-9]/', '', substr(stristr($errors, 'php on line '), 0, 18));
-								$errorStr = explode('Parse error: ', htmlspecialchars(strip_tags(nl2br($errors))));
-								$errorStr = explode('Errors parsing', $errorStr[1]);
-								$errorStr = explode(' in ', $errorStr[0]);
-								$errors = $errorStr[0].' on line '.$line;
-								$this->WriteLog("Ошибка в коде: ".$code);
-								registerError('Keenetic', "Error in code: " . $code. PHP_EOL . PHP_EOL . $errors . PHP_EOL);
-							}
-							else eval($code);
+							$code = $router['CNCT_SCRIPT'] ?? '';
+							$this->executeUserCode($code, ['name' => $name, 'state' => $state, 'connection' => $connection, 'router' => $router], 'подключения '.$name);
 							$update = 1;
 						}
 						if($update){
@@ -545,8 +562,8 @@ function api($params) {
 						$newconn['ROUTER_ID'] = $router['ID'];
 						$newconn['CONN_ID'] = $connection['id'];
 						$newconn['TITLE'] = $connection['description'] ?? '';
-						$newconn['STATUS'] = $connection['connected'] == "yes" ? 1 : 0;
-						$newconn['STATE'] = $connection['state'] == "up" ? 1 : 0;
+						$newconn['STATUS'] = ($connection['connected'] ?? '') == "yes" ? 1 : 0;
+						$newconn['STATE'] = ($connection['state'] ?? '') == "up" ? 1 : 0;
 						$newconn['ADDRESS'] = $connection['address'] ?? '';
 						$newconn['TYPE'] = $connection['type'] ?? '';
 						$newconn['UPDATED'] = date('Y-m-d H:i:s');
@@ -556,16 +573,15 @@ function api($params) {
 				
 				
 				//Предобработка списка устройств
-				$devices = $getdata['show']['ip']['hotspot']['host'];
-				if(!is_array($devices)) {
-					$this->WriteLog($devices);
-				}
+				$devices = $this->normalizeRows($getdata['show']['ip']['hotspot']['host'] ?? []);
+				$devmac = [];
 				foreach ($devices as $valuedev){
-					if($valuedev['name'] == "") $valuedev['name'] = $valuedev['hostname'];
+					if(empty($valuedev['mac'])) continue;
+					if(($valuedev['name'] ?? '') == "") $valuedev['name'] = $valuedev['hostname'] ?? $valuedev['mac'];
 					if(!isset($valuedev['link'])) $valuedev['link'] = 0;
 					else if($valuedev['link'] == "up") $valuedev['link'] = 1;
 					else if($valuedev['link'] == "down") $valuedev['link'] = 0;
-					if($valuedev['ip'] == "0.0.0.0") $valuedev['link'] = 0;
+					if(($valuedev['ip'] ?? '') == "0.0.0.0") $valuedev['link'] = 0;
 					$devmac[$valuedev['mac']] = $valuedev;
 				}				
 				//Проверка изменений
@@ -574,16 +590,16 @@ function api($params) {
 					if(isset($devmac[$value['MAC']])){ //
 						if($value['TRACK']){
 							$host = $devmac[$value['MAC']];
-							$interfaces = $router['MWS'] ? $getdata['show']['mws']['member'] : "";
-							$wifies = $getdata['show']['interface'];
+							$interfaces = $router['MWS'] ? ($getdata['show']['mws']['member'] ?? []) : [];
+							$wifies = $getdata['show']['interface'] ?? [];
 							$info = $this->parse_data($router, $host, $interfaces, $wifies);
 							$object = 'Keenetic.'.$router['TITLE'].'.'.$value['TITLE'];
-							callMethod($value['TITLE'].'.track', $info);
+							callMethodSafe($value['TITLE'].'.track', $info);
 						}
 						$log = "";
-						if($value['IP'] != $devmac[$value['MAC']]['ip']){
-							If($devmac[$value['MAC']]['ip'] != "0.0.0.0"){
-								$value['IP'] = $devmac[$value['MAC']]['ip'];
+						if($value['IP'] != ($devmac[$value['MAC']]['ip'] ?? '')){
+							If(($devmac[$value['MAC']]['ip'] ?? '') != "0.0.0.0"){
+								$value['IP'] = $devmac[$value['MAC']]['ip'] ?? '';
 								$log = ": IP изменен на ". $value['IP'].".";
 							}
 						}
@@ -591,8 +607,8 @@ function api($params) {
 							$value['TITLE'] = $devmac[$value['MAC']]['name'];
 							$log = ": имя изменено на ". $value['TITLE'].".";
 						}
-						if($value['REGISTERED'] != $devmac[$value['MAC']]['registered']){
-							$value['REGISTERED'] = (int)$devmac[$value['MAC']]['registered'];
+						if($value['REGISTERED'] != (int)($devmac[$value['MAC']]['registered'] ?? 0)){
+							$value['REGISTERED'] = (int)($devmac[$value['MAC']]['registered'] ?? 0);
 							if($value['REGISTERED'])$log = " зарегистрировано на роутере.";
 							else $log = ": регистрация с роутера удалена.";
 						}
@@ -608,7 +624,8 @@ function api($params) {
 								if($value['TYPE_CONNECT'] == 0){
 									$device = $this->getdata($router, '', '{"show":{"ip":{"hotspot":{"mac":"'.$value['MAC'].'"}}}}');
 									if(!$device) continue;
-									$device = $device['show']['ip']['hotspot']['host']['0'];
+									$deviceRows = $this->normalizeRows($device['show']['ip']['hotspot']['host'] ?? []);
+									$device = $deviceRows[0] ?? [];
 									if(isset($device['link']) and $device['link'] == "up"){
 										unset($devmac[$value['MAC']]); //удаляем устройства из массива, иначе оно будет считаться не числящимся в БД
 										continue;
@@ -621,22 +638,13 @@ function api($params) {
 							$this->setProperty($value, $value['STATUS'], $device);
 							if($value['STATUS']) $log = " в сети";
 							else $log = " не в сети";
-							$code = $value['SCRIPT'];
-							$errors = php_syntax_error($code);
-							if ($errors){
-								$line = preg_replace('/[^0-9]/', '', substr(stristr($errors, 'php on line '), 0, 18));
-								$errorStr = explode('Parse error: ', htmlspecialchars(strip_tags(nl2br($errors))));
-								$errorStr = explode('Errors parsing', $errorStr[1]);
-								$errorStr = explode(' in ', $errorStr[0]);
-								$errors = $errorStr[0].' on line '.$line;
-								$this->WriteLog("Ошибка в коде: ".$code);
-								registerError('Keenetic', "Error in code: " . $code. PHP_EOL . PHP_EOL . $errors . PHP_EOL);
-							}
-							else eval($code);
+							$code = $value['SCRIPT'] ?? '';
+							$this->executeUserCode($code, ['status' => $status, 'device' => $device, 'router' => $router], 'устройства '.$value['TITLE']);
 							
 						}
 						if($log != ""){
-							$value['LOG'] = date('Y-m-d H:i:s')." Устройство ".$value['TITLE'].$log."\n".SQLSelectOne('SELECT LOG FROM keenetic_devices WHERE MAC="'.$value['MAC'].'"')['LOG'];
+							$oldLog = SQLSelectOne('SELECT LOG FROM keenetic_devices WHERE MAC="'.DBSafe($value['MAC']).'"')['LOG'] ?? '';
+							$value['LOG'] = date('Y-m-d H:i:s')." Устройство ".$value['TITLE'].$log."\n".$oldLog;
 							if(substr_count($value['LOG'], "\n") > 30){ //очищаем самые давние события, если их более 30
 								$value['LOG'] = substr($value['LOG'], 0, strrpos(trim($value['LOG']), "\n"));
 							}
@@ -655,9 +663,9 @@ function api($params) {
 				foreach ($devmac as $value){
 					$new['TITLE'] = $value['name'];
 					$new['MAC'] = $value['mac'];
-					$new['IP'] = $value['ip'];
-					$new['STATUS'] = (int)$value['active'];
-					$new['REGISTERED'] = (int)$value['registered'];
+					$new['IP'] = $value['ip'] ?? '';
+					$new['STATUS'] = (int)($value['link'] ?? 0);
+					$new['REGISTERED'] = (int)($value['registered'] ?? 0);
 					if(isset($value['ap']) or isset($value['mws']))	$new['TYPE_CONNECT'] = 1;
 					else $new['TYPE_CONNECT'] = 0;
 					$new['ROUTER_ID'] = $router['ID'];
@@ -678,11 +686,63 @@ else{ //если устройство отключилось от сети;
 			$router['REQ_UPDATE'] = time();
 			SQLUpdate('keenetic_routers', $router);
 		}
+  }
+ }
+
+ function normalizeRows($rows) {
+	if (!is_array($rows)) {
+		return [];
+	}
+	if ($rows === []) {
+		return [];
+	}
+	if (isset($rows['id']) || isset($rows['mac']) || isset($rows['name']) || isset($rows['description'])) {
+		return [$rows];
+	}
+	return $rows;
+ }
+
+ function getUserCodeError($code) {
+	if (trim((string)$code) === '') {
+		return '';
+	}
+	$errors = php_syntax_error($code);
+	if (!$errors) {
+		return '';
+	}
+	$line = preg_replace('/[^0-9]/', '', substr(stristr($errors, 'php on line '), 0, 18));
+	$errorStr = explode('Parse error: ', htmlspecialchars(strip_tags(nl2br($errors))));
+	if (!isset($errorStr[1])) {
+		return trim(strip_tags($errors));
+	}
+	$errorStr = explode('Errors parsing', $errorStr[1]);
+	$errorStr = explode(' in ', $errorStr[0]);
+	return trim($errorStr[0]).($line !== '' ? ' on line '.$line : '');
+ }
+
+ function executeUserCode($code, $vars = [], $context = '') {
+	if (trim((string)$code) === '') {
+		return true;
+	}
+	$error = $this->getUserCodeError($code);
+	if ($error !== '') {
+		$this->WriteLog("Ошибка в коде".($context ? " ($context)" : "").": ".$code);
+		registerError('Keenetic', "Error in code".($context ? " ($context)" : "").": " . $code . PHP_EOL . PHP_EOL . $error . PHP_EOL);
+		return false;
+	}
+	extract($vars, EXTR_SKIP);
+	try {
+		eval($code);
+		return true;
+	} catch (Throwable $e) {
+		$this->WriteLog("Ошибка выполнения кода".($context ? " ($context)" : "").": ".$e->getMessage());
+		registerError('Keenetic', "Runtime error in code".($context ? " ($context)" : "").": " . $e->getMessage() . PHP_EOL . $e->getTraceAsString() . PHP_EOL);
+		return false;
 	}
  }
  
- //Запись в привязанное свойство/метод
- function setProperty($device, $value, $params = []){
+  //Запись в привязанное свойство/метод
+  function setProperty($device, $value, $params = []){
     if (!empty($device['LINKED_OBJECT']) && !empty($device['LINKED_PROPERTY'])) {
 		setGlobal($device['LINKED_OBJECT'] . '.' . $device['LINKED_PROPERTY'], $value, array($this->name=>1), $this->name);
     }
@@ -698,19 +758,19 @@ else{ //если устройство отключилось от сети;
 	//Keenetic routers
     $routers = SQLSelect("SELECT ID, TITLE, MODEL FROM keenetic_routers WHERE `TITLE` like '%" . DBSafe($data) . "%' OR `MODEL` like '%" . DBSafe($data) . "%' OR `ADDRESS` like '%" . DBSafe($data) . "%'  order by TITLE");
 	foreach($routers as $router){
-         $res[]= '&nbsp;<span class="label label-info">routers</span>&nbsp;<a href="/panel/keenetic.html?md=keenetic&inst=adm&view_mode=edit_keenetic_routers&id=' . $router['ID'] . '.html">' . $router['TITLE'].($router['MODEL'] ? '<small style="color: gray;padding-left: 5px;"><i class="glyphicon glyphicon-arrow-right" style="font-size: .8rem;vertical-align: text-top;color: lightgray;"></i> ' . $router['MODEL'] . '</small>' : ''). '</a>';
+         $res[]= '&nbsp;<span class="badge text-bg-info">routers</span>&nbsp;<a href="/panel/keenetic.html?md=keenetic&inst=adm&view_mode=edit_keenetic_routers&id=' . $router['ID'] . '.html">' . $router['TITLE'].($router['MODEL'] ? '<small class="text-muted ms-1">→ ' . $router['MODEL'] . '</small>' : ''). '</a>';
     }
     //Keenetic devices
     $devices = SQLSelect("SELECT ID, TITLE, IP, ROUTER_ID FROM keenetic_devices WHERE `TITLE` like '%" . DBSafe($data) . "%' OR `MAC` like '%" . DBSafe($data) . "%' OR `IP` like '%" . DBSafe($data) . "%'  order by TITLE");
     foreach($devices as $device){
 		$routr = SQLSelectOne('SELECT TITLE FROM keenetic_routers WHERE ID="'.$device['ROUTER_ID'].'"');
-		$res[]= '&nbsp;<span class="label label-info">'.$routr['TITLE'].'</span>&nbsp;<span class="label label-primary">devices</span>&nbsp;<a href="/panel/keenetic.html?md=keenetic&inst=adm&view_mode=info_keenetic_devices&id=' . $device['ID'] . '.html">' . $device['TITLE']. ($device['IP'] ? '<small style="color: gray;padding-left: 5px;"><i class="glyphicon glyphicon-arrow-right" style="font-size: .8rem;vertical-align: text-top;color: lightgray;"></i> ' . $device['IP'] . '</small>' : '').'</a>';
+		$res[]= '&nbsp;<span class="badge text-bg-info">'.$routr['TITLE'].'</span>&nbsp;<span class="badge text-bg-primary">devices</span>&nbsp;<a href="/panel/keenetic.html?md=keenetic&inst=adm&view_mode=info_keenetic_devices&id=' . $device['ID'] . '.html">' . $device['TITLE']. ($device['IP'] ? '<small class="text-muted ms-1">→ ' . $device['IP'] . '</small>' : '').'</a>';
     }
 	//Keenetic connections
 	$connections = SQLSelect("SELECT ID, TITLE, ADDRESS, TYPE, ROUTER_ID FROM keenetic_connections WHERE `TITLE` like '%" . DBSafe($data) . "%' OR `ADDRESS` like '%" . DBSafe($data) . "%' OR `TYPE` like '%" . DBSafe($data) . "%'  order by TITLE");
 	foreach($connections as $connection){
 		$routr = SQLSelectOne('SELECT TITLE FROM keenetic_routers WHERE ID="'.$connection['ROUTER_ID'].'"');
-		$res[]= '&nbsp;<span class="label label-info">'.$routr['TITLE'].'</span>&nbsp;<span class="label label-primary">connections</span>&nbsp;<a href="/panel/keenetic.html?md=keenetic&inst=adm&view_mode=info_keenetic_cnct&id=' . $connection['ID'] . '.html">' . $connection['TITLE']. ($connection['ADDRESS'] ? '<small style="color: gray;padding-left: 5px;"><i class="glyphicon glyphicon-arrow-right" style="font-size: .8rem;vertical-align: text-top;color: lightgray;"></i> ' . $connection['ADDRESS'] . '</small>' : '').'</a>';
+		$res[]= '&nbsp;<span class="badge text-bg-info">'.$routr['TITLE'].'</span>&nbsp;<span class="badge text-bg-primary">connections</span>&nbsp;<a href="/panel/keenetic.html?md=keenetic&inst=adm&view_mode=info_keenetic_cnct&id=' . $connection['ID'] . '.html">' . $connection['TITLE']. ($connection['ADDRESS'] ? '<small class="text-muted ms-1">→ ' . $connection['ADDRESS'] . '</small>' : '').'</a>';
     }
     return $res;
  }
@@ -833,10 +893,11 @@ EOD;
 /////////////////////////My_functions//////////////////////////////////
 
  function getdata($router, $path = "", $data = "", $save = false){
+	if (empty($router['ADDRESS'])) return false;
 	$ip = $router['ADDRESS'];
-	$login = $router['LOGIN'];
-	$password = $router['PASSWORD'];
-	$cookies = $router['COOKIES'];
+	$login = $router['LOGIN'] ?? '';
+	$password = $router['PASSWORD'] ?? '';
+	$cookies = $router['COOKIES'] ?? '';
 	$prefix = "http://";
 	if(!$this->isIP($ip))$prefix = "https://";
 	$ch = curl_init();
@@ -869,13 +930,18 @@ EOD;
 		}
 	}
 	if($http_code != 200) return false;
+	$decoded = json_decode($html, true);
+	if (!is_array($decoded)) {
+		$this->WriteLog('Некорректный JSON-ответ от '.$ip.' для '.$path);
+		return false;
+	}
 	if($save){
 		$resp = $this->getdata($router, 'system/configuration/save', '{}');
-		if($resp['status']['0']['message'] == "saving configuration...") $this->WriteLog("Конфигурация сохранена");
+		if(($resp['status']['0']['message'] ?? '') == "saving configuration...") $this->WriteLog("Конфигурация сохранена");
 	}
-	return json_decode($html, true);
- }
- 
+	return $decoded;
+  }
+
 function auth($ip, $login, $password){
 	$prefix = "http://";
 	$cookies = "";
@@ -887,23 +953,37 @@ function auth($ip, $login, $password){
 	//curl_setopt($ch, CURLOPT_NOBODY);
 	curl_setopt($ch, CURLOPT_COOKIE, $cookies);
 	$html = curl_exec($ch);
+	if (!$html) {
+		curl_close($ch);
+		return false;
+	}
 	preg_match_all('/^Set-Cookie:\s*([^;]*)/mi', $html, $matches); //вытаскиваем куки
-	$cookies = $matches['1']['0']; //сохраняем куки
+	$cookies = $matches['1']['0'] ?? ''; //сохраняем куки
+	if ($cookies === '') {
+		curl_close($ch);
+		return false;
+	}
 	$headers = [];
 	$data = explode("\r",$html);
-	$headers['status'] = $data['0'];
+	$headers['status'] = $data['0'] ?? '';
 	array_shift($data);
 	foreach($data as $part){
 		$middle=explode(":",$part);
-		@$headers[trim($middle['0'])] = trim($middle['1']);
+		if (($middle[0] ?? '') !== '') {
+			$headers[trim($middle[0])] = trim($middle[1] ?? '');
+		}
 	}
 	if(isset($headers['X-NDM-Challenge'])){
 		$challenge = $headers['X-NDM-Challenge'];
 		$realm = $headers['X-NDM-Realm'];
 	}
 	else{
-		$challenge = $headers['x-ndm-challenge'];
-		$realm = $headers['x-ndm-realm'];
+		$challenge = $headers['x-ndm-challenge'] ?? '';
+		$realm = $headers['x-ndm-realm'] ?? '';
+	}
+	if ($challenge === '' || $realm === '') {
+		curl_close($ch);
+		return false;
 	}
 	$pass = hash('sha256', $challenge.md5($login.':'.$realm.':'.$password));
 	$post = '{"login": "'. $login . '", "password": "' . $pass . '"}';		
@@ -925,6 +1005,7 @@ function auth($ip, $login, $password){
 function command($id, $data, $save=false){
 	if ($this->isIP($id)) $router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ADDRESS="'.$id.'"');
 	else $router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ID="'.$id.'"');
+	if (empty($router['ID'])) return false;
 	$response = $this->getdata($router, '', $data, $save);
 	return $response;
 }
@@ -933,12 +1014,15 @@ function changeConnection($id, $state){
 	$str = 'true';
 	if(is_numeric($id)) $connection = SQLSelectOne('SELECT * FROM keenetic_connections WHERE ID="'.$id.'"');
 	else $connection = SQLSelectOne('SELECT * FROM keenetic_connections WHERE TITLE="'.$id.'"');
+	if (empty($connection['ID'])) return false;
 	if(($state == 2 and !$connection['STATE']) or $state == 1) $str = 'false';
 	$router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ID="'.$connection['ROUTER_ID'].'"');
+	if (empty($router['ID'])) return false;
 	$response = $this->getdata($router, '', '{"interface":{"'.$connection['CONN_ID'].'":{"up":{"no":'.$str.'}}}}', true);
-	$message = explode(":", $response['interface'][$connection['CONN_ID']]['up']['status'][0]['message']);
-	if($message[1] == " interface is up.") $status = true;
-	else if($message[1] == " interface is down.") $status = false;
+	$message = explode(":", $response['interface'][$connection['CONN_ID']]['up']['status'][0]['message'] ?? '');
+	$status = (bool)$connection['STATE'];
+	if(($message[1] ?? '') == " interface is up.") $status = true;
+	else if(($message[1] ?? '') == " interface is down.") $status = false;
 	$connection['STATE'] = (int)$status;
 	SQLUpdate('keenetic_connections', $connection);
 	return $status;
@@ -947,20 +1031,22 @@ function changeConnection($id, $state){
 function reboot($id){
 	if ($this->isIP($id)) $router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ADDRESS="'.$id.'"');
 	else $router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ID="'.$id.'"');
+	if (empty($router['ID'])) return false;
 	$this->getdata($router, 'system/reboot', '{}');
 }
 
 function firmwareUpdate($id){
 	if ($this->isIP($id)) $router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ADDRESS="'.$id.'"');
 	else $router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ID="'.$id.'"');
+	if (empty($router['ID'])) return false;
 	$this->getdata($router, 'components/commit', '{}');
 }
 
 function wol($mac){
 	$oktets = explode(':', $mac);
-	if(count($oktets) != 6) $devices = SQLSelect('SELECT * FROM keenetic_devices WHERE TITLE="'.$mac.'"'); //если это не mac-адрес
-	else $devices = SQLSelect('SELECT * FROM keenetic_devices WHERE MAC="'.$mac.'"');
-	if(count($devices) == 0) return false;
+	if(count($oktets) != 6) $devices = SQLSelect('SELECT * FROM keenetic_devices WHERE TITLE="'.DBSafe($mac).'"'); //если это не mac-адрес
+	else $devices = SQLSelect('SELECT * FROM keenetic_devices WHERE MAC="'.DBSafe($mac).'"');
+	if(!is_array($devices) || count($devices) == 0) return false;
 	foreach($devices as $device){
 		$router = SQLSelectOne('SELECT * FROM keenetic_routers WHERE ID="'.$device['ROUTER_ID'].'"');
 		$this->getdata($router, 'ip/hotspot/wake', '{"mac": "'.$device['MAC'].'"}');
@@ -975,6 +1061,7 @@ function WriteLog($msg){
   }
    
 function isIP($address){
+	if (!is_string($address) || $address === '') return false;
 	$port = strpos($address, ':');
 	if($port) $address = substr($address, 0, $port);
 	$oktets = explode('.', $address);
@@ -989,71 +1076,71 @@ function isIP($address){
 }
 
 function parse_data($router, $host, $interfaces, $wifies){
-	$rec['UPTIME'] = $host['uptime'];
-	$rec['HOSTNAME'] = $host['hostname'];
-	$rec['RXBYTES'] = $host['rxbytes'];
-	$rec['TXBYTES'] = $host['txbytes'];
+	$rec['UPTIME'] = (int)($host['uptime'] ?? 0);
+	$rec['HOSTNAME'] = $host['hostname'] ?? '';
+	$rec['RXBYTES'] = (int)($host['rxbytes'] ?? 0);
+	$rec['TXBYTES'] = (int)($host['txbytes'] ?? 0);
 	if(isset($host['mws'])){ //если подключено к экстендеру
-		foreach($interfaces as $value){
-			$interface[$value['cid']] = $value['known-host'];
+		$interface = [];
+		foreach($this->normalizeRows($interfaces) as $value){
+			if (isset($value['cid'])) {
+				$interface[$value['cid']] = $value['known-host'] ?? '';
+			}
 		}
 		$cidwifi = $host['mws']['ap'];
-		$rec['ROUTER'] = $interface[$host['mws']['cid']]; //название роутера
-		$rec['WIFI_MODE'] = $host['mws']['mode'];
+		$rec['ROUTER'] = $interface[$host['mws']['cid']] ?? ''; //название роутера
+		$rec['WIFI_MODE'] = $host['mws']['mode'] ?? '';
 		if(isset($host['mws']['_11'])){
 			foreach($host['mws']['_11'] as $mode){
 				$rec['WIFI_MODE'] = $rec['WIFI_MODE'].'/'.$mode; //стандарт
 			}
 		}
-		$rec['WIFI_MODE'] = $rec['WIFI_MODE'].' '.($host['mws']['txss']==1?'1x1':'2x2').' '.$host['mws']['ht'].'МГц '.$host['mws']['txrate'].'Мбит'; //режми (стандарт, режми, частота, скорость)
-		$rec['RSSI'] = $host['mws']['rssi']; //rssi
+		$rec['WIFI_MODE'] = $rec['WIFI_MODE'].' '.(($host['mws']['txss'] ?? 0)==1?'1x1':'2x2').' '.($host['mws']['ht'] ?? '').'МГц '.($host['mws']['txrate'] ?? '').'Мбит'; //режми (стандарт, режми, частота, скорость)
+		$rec['RSSI'] = $host['mws']['rssi'] ?? ''; //rssi
 	} else if(isset($host['ap'])){ //если подключено к контроллеру
 		$cidwifi = $host['ap'];
-		$rec['ROUTER'] = $router['MODEL']; //название роутера
-		$rec['WIFI_MODE'] = $host['mode'];
+		$rec['ROUTER'] = $router['MODEL'] ?? ''; //название роутера
+		$rec['WIFI_MODE'] = $host['mode'] ?? '';
 		if(isset($host['_11'])){
 			foreach($host['_11'] as $mode){
 				$rec['WIFI_MODE'] = $rec['WIFI_MODE'].'/'.$mode;
 			}
 		}
-		$rec['WIFI_MODE'] = $rec['WIFI_MODE'].' '.($host['txss']==1?'1x1':'2x2').' '.$host['ht'].'МГц '.$host['txrate'].'Мбит'; //режми (стандарт, режми, частота, скорость)
-		$rec['RSSI'] = $host['rssi']; //rssi
+		$rec['WIFI_MODE'] = $rec['WIFI_MODE'].' '.(($host['txss'] ?? 0)==1?'1x1':'2x2').' '.($host['ht'] ?? '').'МГц '.($host['txrate'] ?? '').'Мбит'; //режми (стандарт, режми, частота, скорость)
+		$rec['RSSI'] = $host['rssi'] ?? ''; //rssi
 	}
-	foreach($wifies as $iface){
+	foreach($this->normalizeRows($wifies) as $iface){
 		if(isset($cidwifi) and $cidwifi == $iface['id']){
 			$wifiap = explode("/", $iface['id']);
 			$rec['FREQ'] = (int)substr($wifiap[0], -1)==1?'5ГГц':'2.4ГГц'; //Частота
-			$rec['NET'] = $iface['ssid']; //Имя точки доступа
+			$rec['NET'] = $iface['ssid'] ?? ''; //Имя точки доступа
 		}
 	}
 	return $rec;
 }
 
 function backupWAN($interface){
-	$i=0;
-	foreach($interface as $iface){
-		if(isset($iface['global']) and $iface['global'] == "true"){
-			$iifaces[$i] = $iface;
-			$priority[$i] = $iface['priority'];
-			$i++;
-		}
-	}
-	rsort($priority);
-	foreach($iifaces as $iface){
-		$total = count($priority);
-		for($i = 0; $i<$total; $i++){
-			if($priority[$i] == $iface['priority']) $siface[$i] = $iface;
-		}
-	}
-	$total = count($siface);
 	$array['STATE'] = 0;
+	$iifaces = [];
+	foreach($this->normalizeRows($interface) as $iface){
+		if(($iface['global'] ?? '') == "true"){
+			$iifaces[] = $iface;
+		}
+	}
+	if (!$iifaces) {
+		return $array;
+	}
+	usort($iifaces, function($a, $b) {
+		return (int)($b['priority'] ?? 0) <=> (int)($a['priority'] ?? 0);
+	});
+	$total = count($iifaces);
 	for($i = 0; $i<$total; $i++){
-		if($siface[$i]['connected'] == 'yes'){
-			if($siface[$i]['defaultgw']){
+		if(($iifaces[$i]['connected'] ?? '') == 'yes'){
+			if(!empty($iifaces[$i]['defaultgw'])){
 				$array['STATE'] = 1;
-				$array['NAME'] = $siface[$i]['description'];
-				$array['UPTIME'] = $siface[$i]['uptime'];
-				$array['IP'] = $siface[$i]['address'] ?? "";
+				$array['NAME'] = $iifaces[$i]['description'] ?? '';
+				$array['UPTIME'] = $iifaces[$i]['uptime'] ?? 0;
+				$array['IP'] = $iifaces[$i]['address'] ?? "";
 				$array['WAN'] = $i;
 				break;
 			}

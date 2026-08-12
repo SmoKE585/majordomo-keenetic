@@ -20,7 +20,8 @@ $latest_check=0;
 $checkEvery = 1;
 $timeUpdate = 0;
 //Добавляем отсутствующие столбцы в таблицу
-$query = mysqli_fetch_all(SQLExec("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'keenetic_routers'"), MYSQLI_NUM);
+$columnsResult = SQLExec("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'keenetic_routers'");
+$query = $columnsResult ? mysqli_fetch_all($columnsResult, MYSQLI_NUM) : [];
 $add = 1;
 foreach($query as $name) {
 	if($name[0] == 'HREF_FW') $add = 0;

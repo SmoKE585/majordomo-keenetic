@@ -1,11 +1,14 @@
-<h4>Справка</h4> <a href="https://mjdm.ru/forum/viewtopic.php?f=5&t=7382" target="_blank">Тема на форуме</a>
-<div class="panel-group" id="accordion" style="width:98%">
-   <div class="panel panel-info">
-      <div class="panel-heading">
-         <a data-toggle="collapse" data-parent="#accordion" href="#general_help">Общие сведения</a>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+   <h4 class="mb-0">Справка</h4>
+   <a href="https://mjdm.ru/forum/viewtopic.php?f=5&t=7382" target="_blank" rel="noopener noreferrer">Тема на форуме</a>
+</div>
+<div class="accordion" id="accordion">
+   <div class="accordion-item">
+      <div class="accordion-header">
+         <a class="accordion-button collapsed" data-bs-toggle="collapse" href="#general_help">Общие сведения</a>
       </div>
-      <div class="panel-body collapse" id="general_help">
-         <div style="width:98%">
+      <div class="accordion-collapse collapse" id="general_help">
+         <div class="accordion-body">
             <p>Модуль предназначен для взаимодействия с интернет-центрами <strong>Keenetic</strong> с версией прошивки не ниже <strong>2.13</strong>.</p>
             <p><strong>Возможности модуля:</strong></p>
             <ul>
@@ -28,12 +31,12 @@
          </div>
       </div>
    </div>
-   <div class="panel panel-info">
-      <div class="panel-heading">
-         <a data-toggle="collapse" data-parent="#accordion" href="#class_help">Класс для "отслеживания"</a>
+   <div class="accordion-item">
+      <div class="accordion-header">
+         <a class="accordion-button collapsed" data-bs-toggle="collapse" href="#class_help">Класс для "отслеживания"</a>
       </div>
-      <div class="panel-body collapse" id="class_help">
-        <div style="width:900px">
+      <div class="accordion-collapse collapse" id="class_help">
+        <div class="accordion-body">
 		  <p>При установке модуль создает в Объектах свой класс Keenetic с свойствами и методом. В свою очередь, в классе Keenetic, при добавлении роутеров, создаются подклассы с их наименованием.</p>
 		  <p>В информации об устройстве показывается статус отслеживания (по умолчанию выключен) и присутствует кнопка для его включения/выключения.</p>
 		  <p>При включении "отслеживания" в классе с именем роутера создается объект с именем устройства и при каждом проходе цикла запускается метод объекта и передается информация для заполнения свойств объекта.</p>
@@ -62,12 +65,12 @@
 		</div>
       </div>
    </div>
-   <div class="panel panel-info">
-      <div class="panel-heading">
-         <a data-toggle="collapse" data-parent="#accordion" href="#inet_help">Статусы подключения к сети Интернет</a>
+   <div class="accordion-item">
+      <div class="accordion-header">
+         <a class="accordion-button collapsed" data-bs-toggle="collapse" href="#inet_help">Статусы подключения к сети Интернет</a>
       </div>
-      <div class="panel-body collapse" id="inet_help">
-        <div style="width:900px">
+      <div class="accordion-collapse collapse" id="inet_help">
+        <div class="accordion-body">
 			В устройстве <strong>"Интернет"</strong>, возможны следующие статусы: 
 			<ul>
             <li><strong>0</strong> - интернет отсутствует.</li>
@@ -79,12 +82,12 @@
 		</div>
       </div>
    </div>
-   <div class="panel panel-info">
-      <div class="panel-heading">
-         <a data-toggle="collapse" data-parent="#accordion" href="#script_help">Скрипт, выполняемый при изменении статуса устройства</a>
+   <div class="accordion-item">
+      <div class="accordion-header">
+         <a class="accordion-button collapsed" data-bs-toggle="collapse" href="#script_help">Скрипт, выполняемый при изменении статуса устройства</a>
       </div>
-      <div class="panel-body collapse" id="script_help">
-        <div style="width:900px">
+      <div class="accordion-collapse collapse" id="script_help">
+        <div class="accordion-body">
 		  <p>В поле скрипта уже заложено тело скрипта, а именно условия для определения статуса устройства. Туда вы можете вносить любые действия.</p>
 		  <strong>Пример:</strong><br>
 			<pre>if($status){ //если устройство появилось в сети
@@ -106,12 +109,12 @@ else{ //если устройство отключилось от сети
 		</div>
       </div>
    </div>
-   <div class="panel panel-info">
-      <div class="panel-heading">
-         <a data-toggle="collapse" data-parent="#accordion" href="#device_help">Описание массива $device</a>
+   <div class="accordion-item">
+      <div class="accordion-header">
+         <a class="accordion-button collapsed" data-bs-toggle="collapse" href="#device_help">Описание массива $device</a>
       </div>
-      <div class="panel-body collapse" id="device_help">
-         <div style="width:900px">
+      <div class="accordion-collapse collapse" id="device_help">
+         <div class="accordion-body">
             <strong>['mac'] => 68:72:c3:56:42:81</strong> - MAC адрес<br>
 			<strong>['via'] => 68:72:c3:56:42:81</strong> - MAC адрес<br>
 			<strong>['ip'] => 192.168.1.126</strong> - IP адрес<br>
@@ -168,12 +171,12 @@ else{ //если устройство отключилось от сети
          </div>
       </div>
    </div>
-   <div class="panel panel-info">
-      <div class="panel-heading">
-         <a data-toggle="collapse" data-parent="#accordion" href="#functions_help">Функции</a>
+   <div class="accordion-item">
+      <div class="accordion-header">
+         <a class="accordion-button collapsed" data-bs-toggle="collapse" href="#functions_help">Функции</a>
       </div>
-      <div class="panel-body collapse" id="functions_help">
-        <div style="width:900px">
+      <div class="accordion-collapse collapse" id="functions_help">
+        <div class="accordion-body">
 		  <p>На добавленном к модулю роутере можно выполнять <b>произвольные команды</b> с помощью следующего кода:</p>
 			<pre>include_once(DIR_MODULES . "keenetic/keenetic.class.php");
 $keenetic_module = new keenetic();
@@ -199,12 +202,12 @@ $keenetic_module->changeConnection('id/название подключения',
 		</div>
       </div>
 	</div>
-	<div class="panel panel-info">
-      <div class="panel-heading">
-         <a data-toggle="collapse" data-parent="#accordion" href="#api_help">Обращение к роутеру по API с помощью кода</a>
+	<div class="accordion-item">
+      <div class="accordion-header">
+         <a class="accordion-button collapsed" data-bs-toggle="collapse" href="#api_help">Обращение к роутеру по API с помощью кода</a>
       </div>
-      <div class="panel-body collapse" id="api_help">
-        <div style="width:900px">
+      <div class="accordion-collapse collapse" id="api_help">
+        <div class="accordion-body">
 			<p>
 				Параметры:
 				<ul>
@@ -227,12 +230,12 @@ $result = $keenetic->api(array('id'=>1,'path'=>'show/interface','data'=>''));</p
 		</div>
       </div>
 	</div>
-	<div class="panel panel-info">
-      <div class="panel-heading">
-         <a data-toggle="collapse" data-parent="#accordion" href="#cnct_help">Подключения</a>
+	<div class="accordion-item">
+      <div class="accordion-header">
+         <a class="accordion-button collapsed" data-bs-toggle="collapse" href="#cnct_help">Подключения</a>
       </div>
-      <div class="panel-body collapse" id="cnct_help">
-        <div style="width:900px">
+      <div class="accordion-collapse collapse" id="cnct_help">
+        <div class="accordion-body">
 		  <p>Используется для отслеживания статуса и управления подключениями.<br>
 		  Включение/выключение подключения тумблером работает сразу, без нажатия кнопки "Сохранить".</p>
 		  <p>Код из поля внизу выполняется при изменении статуса любого подключения.
@@ -251,12 +254,12 @@ say("Соединение с " . $name . $text, 2);</pre>
 		</div>
       </div>
    </div>
-    <div class="panel panel-info">
-      <div class="panel-heading">
-         <a data-toggle="collapse" data-parent="#accordion" href="#dns_help">Управление DNS</a>
+    <div class="accordion-item">
+      <div class="accordion-header">
+         <a class="accordion-button collapsed" data-bs-toggle="collapse" href="#dns_help">Управление DNS</a>
       </div>
-      <div class="panel-body collapse" id="dns_help">
-        <div style="width:900px">
+      <div class="accordion-collapse collapse" id="dns_help">
+        <div class="accordion-body">
 		  <p>Используется для назначения IP адресам доменных имен.</p>
 		   <p>В связи с тем, что настройка данного функционала имеется только в командной строке, решил вывести его в модуль.</p>
 		  <p>Работает <strong>только внутри</strong> локальной сети.</p>
@@ -266,5 +269,5 @@ say("Соединение с " . $name . $text, 2);</pre>
 </div>
 <br>
 <div>
-   <a href="?data_source=<#DATA_SOURCE#>" class="btn btn-default"><#LANG_STRING_BACK#></a>
+   <a href="?data_source=<#DATA_SOURCE#>" class="btn btn-outline-secondary"><#LANG_STRING_BACK#></a>
 </div>

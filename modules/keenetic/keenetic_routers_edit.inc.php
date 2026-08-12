@@ -6,8 +6,10 @@
    $out['CONTROLPANEL']=1;
   }
   $table_name='keenetic_routers';
-  $rec=SQLSelectOne("SELECT * FROM $table_name WHERE ID='$id'");
-  $rec['PASSWORD'] = $this->dsCrypt($rec['PASSWORD'], true);
+  $rec=SQLSelectOne("SELECT * FROM $table_name WHERE ID='".(int)$id."'");
+  if (!empty($rec['PASSWORD'])) {
+   $rec['PASSWORD'] = $this->dsCrypt($rec['PASSWORD'], true);
+  }
   if ($this->tab=='') {
 	if ($rec['STATUS'] and $rec['FIRMWARE'] != $rec['NEW_FIRMWARE']) $rec['UPDATE'] = 1;
    if ($this->mode=='update') {
@@ -42,17 +44,17 @@
 		 $rec['COOKIES'] = $this->auth($rec['ADDRESS'],$rec['LOGIN'],$rec['PASSWORD']);
 		 if($rec['COOKIES']){
 			$data = $this->getdata($rec,"show",'{"version": {}, "identification": {}, "internet":{"status":{}}}');
-			if($data['version']['model'] == "Keenetic") $rec['MODEL'] = $data['version']['device'];
-			else $rec['MODEL'] = $data['version']['model'];
-			$rec['FIRMWARE'] = $data['version']['release'];
+			if(($data['version']['model'] ?? '') == "Keenetic") $rec['MODEL'] = $data['version']['device'] ?? '';
+			else $rec['MODEL'] = $data['version']['model'] ?? '';
+			$rec['FIRMWARE'] = $data['version']['release'] ?? '';
 			$rec['NEW_FIRMWARE'] = $rec['FIRMWARE'];
-			$rec['SERIAL'] = $data['identification']['serial'];
+			$rec['SERIAL'] = $data['identification']['serial'] ?? '';
 			$rec['AUTO_REBOOT'] = !empty(gr('reboot')) ? gr('reboot') : 0;
 			$rec['REQ_PERIOD'] = !empty(gr('period')) ? gr('period') : 5;
 			$rec['STATUS'] = 1;
 			$rec['INET_STATUS'] = !empty($data['internet']['status']['internet']) ? $data['internet']['status']['internet'] : 0;
 			$rec['UPDATED'] = date('Y-m-d H:i:s');
-			$components = explode(",", $data['version']['ndw']['components']);
+			$components = explode(",", $data['version']['ndw']['components'] ?? '');
 			foreach($components as $name) {
 				if($name == 'mws') $rec['MWS'] = 1;
 			}
@@ -105,22 +107,23 @@ else if($status > 1){ //если интернет есть и активно р�
    $new_id=0;
    $wol_id = gr('wol_id');
    if ($wol_id) {
-    $device = SQLSelectOne('SELECT * FROM keenetic_devices WHERE ID="'.$wol_id.'"');
-    $this->wol($device['MAC']);
+    $device = SQLSelectOne('SELECT * FROM keenetic_devices WHERE ID="'.(int)$wol_id.'"');
+    if (!empty($device['MAC'])) $this->wol($device['MAC']);
    }
    $register_id = gr('register_id');
    if ($register_id) {
-    $device = SQLSelectOne('SELECT * FROM keenetic_devices WHERE ID="'.$register_id.'"');
-	$this->getdata($rec, 'known/host', '{"mac": "'.$device['MAC'].'", "name": "'.$device['TITLE'].'"}', 1);
+    $device = SQLSelectOne('SELECT * FROM keenetic_devices WHERE ID="'.(int)$register_id.'"');
+	if (!empty($device['MAC'])) $this->getdata($rec, 'known/host', '{"mac": "'.$device['MAC'].'", "name": "'.$device['TITLE'].'"}', 1);
    }
    $delete_id = gr('delete_id');
    if ($delete_id) {
-	$device = SQLSelectOne('SELECT * FROM keenetic_devices WHERE ID="'.$delete_id.'"');
-	$this->getdata($rec, 'known/host', '{"mac": "'.$device['MAC'].'", "no": "true"}', 1);
+	$device = SQLSelectOne('SELECT * FROM keenetic_devices WHERE ID="'.(int)$delete_id.'"');
+	if (!empty($device['MAC'])) $this->getdata($rec, 'known/host', '{"mac": "'.$device['MAC'].'", "no": "true"}', 1);
     SQLExec("DELETE FROM keenetic_devices WHERE ID='".(int)$delete_id."'");
    }
    $sortby = gr('sortby');
-   if ($sortby) $sort = $sortby;
+   $allowedSort = ['ID', 'TITLE', 'MAC', 'IP', 'STATUS', 'TYPE_CONNECT', 'REGISTERED', 'UPDATED'];
+   if ($sortby && in_array($sortby, $allowedSort, true)) $sort = $sortby;
    else $sort = "ID";
    $properties=SQLSelect("SELECT * FROM keenetic_devices WHERE ROUTER_ID='".$rec['ID']."' ORDER BY ".$sort);
    $total=count($properties);
@@ -130,14 +133,14 @@ else if($status > 1){ //если интернет есть и активно р�
 	  $old_title=$properties[$i]['TITLE'];
 	  $old_linked_object=$properties[$i]['LINKED_OBJECT'];
       $old_linked_property=$properties[$i]['LINKED_PROPERTY'];
-	  global ${'title'.$properties[$i]['ID']};
-	  if($properties[$i]['TITLE'] != 'Интернет') $properties[$i]['TITLE']=trim(${'title'.$properties[$i]['ID']});
-      global ${'linked_object'.$properties[$i]['ID']};
-      $properties[$i]['LINKED_OBJECT']=trim(${'linked_object'.$properties[$i]['ID']});
-      global ${'linked_property'.$properties[$i]['ID']};
-      $properties[$i]['LINKED_PROPERTY']=trim(${'linked_property'.$properties[$i]['ID']});
-      global ${'linked_method'.$properties[$i]['ID']};
-      $properties[$i]['LINKED_METHOD']=trim(${'linked_method'.$properties[$i]['ID']});
+	  $titleValues = $_POST['title'] ?? [];
+	  if($properties[$i]['TITLE'] != 'Интернет') $properties[$i]['TITLE']=trim($titleValues[$properties[$i]['ID']] ?? $properties[$i]['TITLE']);
+      $linkedObjects = $_POST['linked_object'] ?? [];
+      $properties[$i]['LINKED_OBJECT']=trim($_POST['linked_object'.$properties[$i]['ID']] ?? ($linkedObjects[$properties[$i]['ID']] ?? ''));
+      $linkedProperties = $_POST['linked_property'] ?? [];
+      $properties[$i]['LINKED_PROPERTY']=trim($_POST['linked_property'.$properties[$i]['ID']] ?? ($linkedProperties[$properties[$i]['ID']] ?? ''));
+      $linkedMethods = $_POST['linked_method'] ?? [];
+      $properties[$i]['LINKED_METHOD']=trim($_POST['linked_method'.$properties[$i]['ID']] ?? ($linkedMethods[$properties[$i]['ID']] ?? ''));
 	  // Если юзер удалил привязанные свойство и метод, но забыл про объект, то очищаем его.
       if ($properties[$i]['LINKED_OBJECT'] != '' && ($properties[$i]['LINKED_PROPERTY'] == '' && $properties[$i]['LINKED_METHOD'] == '')) {
           $properties[$i]['LINKED_OBJECT'] = '';
@@ -155,6 +158,9 @@ else if($status > 1){ //если интернет есть и активно р�
 	   setGlobal($properties[$i]['LINKED_OBJECT'].".".$properties[$i]['LINKED_PROPERTY'], $properties[$i]['STATUS']);
       }
      }
+    $GLOBALS['linked_object'.$properties[$i]['ID']] = $properties[$i]['LINKED_OBJECT'] ?? '';
+    $GLOBALS['linked_property'.$properties[$i]['ID']] = $properties[$i]['LINKED_PROPERTY'] ?? '';
+    $GLOBALS['linked_method'.$properties[$i]['ID']] = $properties[$i]['LINKED_METHOD'] ?? '';
    }
    $out['PROPERTIES']=$properties;  
   }
@@ -162,12 +168,15 @@ else if($status > 1){ //если интернет есть и активно р�
   // Вкладка соединения
   if ($this->tab=='cnct') {
    $sortby = gr('sortby');
-   if ($sortby) $sort = $sortby;
+   $allowedSort = ['ID', 'TITLE', 'STATE', 'STATUS', 'ADDRESS', 'TYPE', 'UPDATED'];
+   if ($sortby && in_array($sortby, $allowedSort, true)) $sort = $sortby;
    else $sort = "ID";
    $change = gr('change');
    if ($change) {
 	$data = explode(",", $change);
-    $this->changeConnection($data[0], $data[1]);
+    if (isset($data[0], $data[1])) {
+     $this->changeConnection($data[0], $data[1]);
+    }
    }
    $properties=SQLSelect("SELECT * FROM keenetic_connections WHERE ROUTER_ID='".$rec['ID']."' ORDER BY ".$sort);
    $total=count($properties);
@@ -176,12 +185,12 @@ else if($status > 1){ //если интернет есть и активно р�
 	  $old_title=$properties[$i]['TITLE'];
 	  $old_linked_object=$properties[$i]['LINKED_OBJECT'];
       $old_linked_property=$properties[$i]['LINKED_PROPERTY'];
-      global ${'linked_object'.$properties[$i]['ID']};
-      $properties[$i]['LINKED_OBJECT']=trim(${'linked_object'.$properties[$i]['ID']});
-      global ${'linked_property'.$properties[$i]['ID']};
-      $properties[$i]['LINKED_PROPERTY']=trim(${'linked_property'.$properties[$i]['ID']});
-      global ${'linked_method'.$properties[$i]['ID']};
-      $properties[$i]['LINKED_METHOD']=trim(${'linked_method'.$properties[$i]['ID']});
+      $linkedObjects = $_POST['linked_object'] ?? [];
+      $properties[$i]['LINKED_OBJECT']=trim($_POST['linked_object'.$properties[$i]['ID']] ?? ($linkedObjects[$properties[$i]['ID']] ?? ''));
+      $linkedProperties = $_POST['linked_property'] ?? [];
+      $properties[$i]['LINKED_PROPERTY']=trim($_POST['linked_property'.$properties[$i]['ID']] ?? ($linkedProperties[$properties[$i]['ID']] ?? ''));
+      $linkedMethods = $_POST['linked_method'] ?? [];
+      $properties[$i]['LINKED_METHOD']=trim($_POST['linked_method'.$properties[$i]['ID']] ?? ($linkedMethods[$properties[$i]['ID']] ?? ''));
 	  // Если юзер удалил привязанные свойство и метод, но забыл про объект, то очищаем его.
       if ($properties[$i]['LINKED_OBJECT'] != '' && ($properties[$i]['LINKED_PROPERTY'] == '' && $properties[$i]['LINKED_METHOD'] == '')) {
           $properties[$i]['LINKED_OBJECT'] = '';
@@ -202,6 +211,9 @@ else if($status > 1){ //если интернет есть и активно р�
 		SQLUpdate('keenetic_routers', $rec);
 	  }
      }
+    $GLOBALS['linked_object'.$properties[$i]['ID']] = $properties[$i]['LINKED_OBJECT'] ?? '';
+    $GLOBALS['linked_property'.$properties[$i]['ID']] = $properties[$i]['LINKED_PROPERTY'] ?? '';
+    $GLOBALS['linked_method'.$properties[$i]['ID']] = $properties[$i]['LINKED_METHOD'] ?? '';
    }
    $out['SCRIPT'] = $rec['CNCT_SCRIPT'];
    $out['PROPERTIES']=$properties;  
@@ -220,7 +232,7 @@ if ($this->tab=='dns') {
 		$ip = gr('ip_new');
 		$resp = $this->getdata($rec, 'ip/host', '{"domain": "'.$domain.'", "address": "'.$ip.'"}', 1);
 		//print_r($resp);
-		if($resp['status']['0']['status'] == "error"){
+		if(($resp['status']['0']['status'] ?? '') == "error"){
 			$ok = 0;
 			$out['ERR']=1;
 			$out['ERR_ALERT']="Неправильный IP адрес";
@@ -230,13 +242,14 @@ if ($this->tab=='dns') {
 	}
 	$data = $this->getdata($rec, '', '{"show": {"running-config": {}}}');
 	$i = 0;
-	foreach($data['show']['running-config']['message'] as $value){
+	$dns = [];
+	foreach((array)($data['show']['running-config']['message'] ?? []) as $value){
 		if(strpos($value, "ip host") !== false){
 			$var = str_replace('ip host ', '', $value);
 			if($var){
 				$var = explode(' ', $var);
-				$dns[$i]['TITLE'] = $var[0];
-				$dns[$i]['IP'] = $var[1];
+				$dns[$i]['TITLE'] = $var[0] ?? '';
+				$dns[$i]['IP'] = $var[1] ?? '';
 				$i++;
 			}
 		}

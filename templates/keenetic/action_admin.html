@@ -1,104 +1,89 @@
 [#if VIEW_MODE="search_keenetic_routers" || VIEW_MODE=""#]
-<div class="row">
-	<div class="col-md-2">
-		<a href="?view_mode=edit_keenetic_routers&data_source=<#DATA_SOURCE#>" class="btn btn-default"><i class="glyphicon glyphicon-plus"></i><#LANG_ADD#></a>
-		&nbsp;&nbsp;
-		<!--# Кнопка 'Настройки'. #-->
-		<a class="btn btn-default" href="#api_settings" data-toggle="collapse"><i class="glyphicon glyphicon-cog"></i></a>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+	<div class="d-flex flex-wrap align-items-center gap-2">
+		<a href="?view_mode=edit_keenetic_routers&data_source=<#DATA_SOURCE#>" class="btn btn-primary"><#LANG_ADD#></a>
+		<a class="btn btn-outline-secondary" href="#api_settings" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="api_settings">Настройки</a>
+		<img src="../templates/keenetic/keenetic.svg" height="28" alt="Keenetic">
 	</div>
-	<div class="col-md-3">
-		<img align="middle" src="../templates/keenetic/keenetic.svg" height="22">
-	</div>
-	<div class="col-md-6">
+	<div class="flex-grow-1">
 		[#module name="xray" action="service" cycle="keenetic"#]
 	</div>
-		<!--# Кнопка 'Справка'. #-->
-	<div class="col-md-1">
-		<a href="?view_mode=show_help" class="btn btn-default btn-sm float-right" title="Справка"><i class="glyphicon glyphicon-question-sign"></i></a>
-	</div>
+	<a href="?view_mode=show_help" class="btn btn-outline-secondary btn-sm" title="Справка">?</a>
 </div>
 [#else#]
-<a href="?view_mode=show_help" class="btn btn-default btn-sm float-right" title="Справка"><i class="glyphicon glyphicon-question-sign"></i></a>
-[#endif VIEW_MODE#]
-<div class="collapse" id='api_settings'>
-&nbsp;
-<form action="?" method="post" enctype="multipart/form-data" name="frmEdit" class="form-horizontal">
-<fieldset>
-         <div class="form-group">
-            <div class="controls">
-               <input type="checkbox" name="log_debmes" value="1"[#if LOG_DEBMES="1"#] checked[#endif#]> 
-               <span class='text' data-toggle="tooltip" title="Запись в отдельный лог-файл YYYY-mm-dd_keenetic.log.">Отладка  DebMes</span>
-            </div>
-         </div>
-<div class="form-actions">
-<button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
-<input type="hidden" name="view_mode" value="update_settings">
-<input type="hidden" name="mode" value="update">
+<div class="d-flex justify-content-end mb-3">
+	<a href="?view_mode=show_help" class="btn btn-outline-secondary btn-sm" title="Справка">?</a>
 </div>
-</fieldset>
-</form>
+[#endif VIEW_MODE#]
+
+<div class="collapse mb-3" id="api_settings">
+	<section class="card">
+		<div class="card-body">
+			<form action="?" method="post" enctype="multipart/form-data" name="frmEdit">
+				<div class="form-check mb-3">
+					<input class="form-check-input" type="checkbox" id="logDebmes" name="log_debmes" value="1"[#if LOG_DEBMES="1"#] checked[#endif#]>
+					<label class="form-check-label" for="logDebmes" data-bs-toggle="tooltip" title="Запись в отдельный лог-файл YYYY-mm-dd_keenetic.log.">Отладка DebMes</label>
+				</div>
+				<button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
+				<input type="hidden" name="view_mode" value="update_settings">
+				<input type="hidden" name="mode" value="update">
+			</form>
+		</div>
+	</section>
 </div>
 
- <!-- action usual -->
- [#if DATA_SOURCE="keenetic_routers" || DATA_SOURCE=""#]
- <!-- table keenetic_routers search -->
- [#if VIEW_MODE="search_keenetic_routers" || VIEW_MODE=""#]
-  [#inc keenetic_routers_search_admin.html#]
- [#endif VIEW_MODE#]
- <!-- / table keenetic_routers search -->
- 
-  <!--# Справка по модулю. #-->
-[#if VIEW_MODE="show_help"#]
-   [#inc ./help_ru.html#] 
-[#endif#]
-  <!--# Информация об устройстве #-->
-[#if VIEW_MODE="info_keenetic_devices"#]
-   [#inc keenetic_devices_dev_info.html#] 
-[#endif#]
-  <!--# Настройка DNS #-->
-[#if VIEW_MODE="dns_keenetic_routers"#]
-   [#inc keenetic_routers_edit_dns.html#] 
-[#endif#]
- 
- <!-- table keenetic_routers edit -->
- [#if VIEW_MODE="edit_keenetic_routers"#]
-   [#if ID!=""#]
-   [#if TITLE!=""#]<h4>[#TITLE#]</h4>[#endif TITLE#]
-<ul class="nav nav-tabs">
-  <li[#if TAB=""#] class="active"[#endif#]>
-   <a href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab="><#LANG_GENERAL#></a>
-  </li>
-  <li[#if TAB="data"#] class="active"[#endif#]>
-   <a href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=data">Устройства</a>
-  </li>
-   <li[#if TAB="cnct"#] class="active"[#endif#]>
-   <a href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=cnct">Подключения</a>
-  </li>
-  <li[#if TAB="dns"#] class="active"[#endif#]>
-   <a href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=dns">Управление DNS</a>
-  </li>
-</ul>
-&nbsp;<br/>
-   [#endif ID#]
-   [#if TAB=""#]
-    [#inc keenetic_routers_edit_default.html#]
-   [#endif TAB#]
-   [#if TAB="data"#]
-    [#inc keenetic_routers_edit_data.html#]
-   [#endif TAB#]
-   [#if TAB="cnct"#]
-    [#inc keenetic_routers_edit_cnct.html#]
-   [#endif TAB#]
-   [#if TAB="dns"#]
-    [#inc keenetic_routers_edit_dns.html#]
-   [#endif TAB#]
- [#endif VIEW_MODE#]
- <!-- / table keenetic_routers edit -->
- <!-- table keenetic_routers view --> 
- [#if VIEW_MODE="view_keenetic_routers"#]
-   [#if TAB=""#]
-    [#inc keenetic_routers_view_default.html#]
-   [#endif TAB#]
- [#endif VIEW_MODE#]
- <!-- / table keenetic_routers view -->
- [#endif DATA_SOURCE#]
+[#if DATA_SOURCE="keenetic_routers" || DATA_SOURCE=""#]
+	[#if VIEW_MODE="search_keenetic_routers" || VIEW_MODE=""#]
+		[#inc keenetic_routers_search_admin.html#]
+	[#endif VIEW_MODE#]
+
+	[#if VIEW_MODE="show_help"#]
+		[#inc ./help_ru.html#]
+	[#endif#]
+
+	[#if VIEW_MODE="info_keenetic_devices"#]
+		[#inc keenetic_devices_dev_info.html#]
+	[#endif#]
+
+	[#if VIEW_MODE="dns_keenetic_routers"#]
+		[#inc keenetic_routers_edit_dns.html#]
+	[#endif#]
+
+	[#if VIEW_MODE="edit_keenetic_routers"#]
+		[#if ID!=""#]
+			[#if TITLE!=""#]<h4 class="mb-3">[#TITLE#]</h4>[#endif TITLE#]
+			<ul class="nav nav-tabs mb-3">
+				<li class="nav-item">
+					<a class="nav-link [#if TAB=""#]active[#endif#]" href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab="><#LANG_GENERAL#></a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link [#if TAB="data"#]active[#endif#]" href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=data">Устройства</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link [#if TAB="cnct"#]active[#endif#]" href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=cnct">Подключения</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link [#if TAB="dns"#]active[#endif#]" href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=dns">Управление DNS</a>
+				</li>
+			</ul>
+		[#endif ID#]
+		[#if TAB=""#]
+			[#inc keenetic_routers_edit_default.html#]
+		[#endif TAB#]
+		[#if TAB="data"#]
+			[#inc keenetic_routers_edit_data.html#]
+		[#endif TAB#]
+		[#if TAB="cnct"#]
+			[#inc keenetic_routers_edit_cnct.html#]
+		[#endif TAB#]
+		[#if TAB="dns"#]
+			[#inc keenetic_routers_edit_dns.html#]
+		[#endif TAB#]
+	[#endif VIEW_MODE#]
+
+	[#if VIEW_MODE="view_keenetic_routers"#]
+		[#if TAB=""#]
+			[#inc keenetic_routers_view_default.html#]
+		[#endif TAB#]
+	[#endif VIEW_MODE#]
+[#endif DATA_SOURCE#]
