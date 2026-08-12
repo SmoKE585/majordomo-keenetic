@@ -103,20 +103,46 @@
 	</div>
 
 	<div class="mb-3">
-		[#module name="blockly_code" system_name="keenetic<#ID#>" code_field="code" action=""#]
-		[#if ERRORS#]
-			<div id="error_noty" class="alert alert-danger">
-				<strong><#LANG_CODEEDITOR_ERROR_IN_CODE#>:</strong> [#ERRORS#] в строке [#ERR_LINE#]
-				<div><#LANG_CODEEDITOR_ERROR_RESTORE_CODE#></div>
+		<div class="md-code-editor-shell" data-code-editor-shell>
+			[#if SETTINGS_CODEEDITOR_TURNONSETTINGS != 1#]
+			<div class="alert alert-warning"><#LANG_CODEEDITOR_NOTY_TURNOFF#></div>
+			[#endif SETTINGS_CODEEDITOR_TURNONSETTINGS#]
+
+			<div class="md-code-editor"
+				 data-code-editor
+				 data-code-editor-key="[#CODE_EDITOR_KEY#]"
+				 data-code-editor-mode="[#CODE_EDITOR_MODE#]"
+				 data-code-editor-theme="[#SETTINGS_CODEEDITOR_THEME#]"
+				 data-code-editor-autosave="0"
+				 data-code-editor-autoclose="[#SETTINGS_CODEEDITOR_AUTOCLOSEQUOTES#]"
+				 data-code-editor-wraplines="[#SETTINGS_CODEEDITOR_WRAPLINES#]"
+				 data-code-editor-min-lines="[#SETTINGS_CODEEDITOR_MIXLINE#]"
+				 data-code-editor-max-lines="[#SETTINGS_CODEEDITOR_SHOWLINE#]"
+				 data-code-editor-autofocus="0"
+				 data-code-editor-validate-url=""
+				 data-code-editor-autosave-url=""
+				 data-code-editor-id="<#ID#>"
+				 data-code-editor-md="keenetic_cnct<#ID#>"
+				 data-code-editor-hide-errors-on-edit="[#if SETTINGS_CODEEDITOR_SHOWERROR == 1#]1[#else#]0[#endif#]">
+				<div class="md-code-editor__toolbar" data-code-editor-toolbar>
+					<label class="md-code-editor__mode-switch" data-mode="php">
+						<input type="checkbox" data-code-editor-mode-toggle aria-label="Code editor mode">
+						<span class="md-code-editor__mode-switch-option md-code-editor__mode-switch-option--php">PHP</span>
+						<span class="md-code-editor__mode-switch-option md-code-editor__mode-switch-option--python">Python</span>
+						<input type="hidden" name="code_editor_mode" value="php" data-code-editor-mode-select>
+					</label>
+					<button type="button" class="btn btn-outline-secondary btn-sm" data-code-editor-action="fullscreen">F11</button>
+					<span class="md-code-editor__status" data-code-editor-status></span>
+				</div>
+
+				[#if SETTINGS_CODEEDITOR_SHOWERROR == 1 AND ERRORS!=""#]
+				<div class="md-code-editor__error" data-code-editor-error>
+					<strong><#LANG_CODEEDITOR_ERROR_IN_CODE#>:</strong> [#ERRORS#] в строке [#ERR_LINE#]
+				</div>
+				[#endif#]
+
+				<textarea name="code" id="code" rows="24" cols="100" class="form-control">[#SCRIPT#]</textarea>
 			</div>
-			<textarea id="error_old_code" class="d-none">[#ERR_OLD_CODE#]</textarea>
-		[#endif ERRORS#]
-		<div class="visible-xs visible-sm" id="mobileIndicator"></div>
-		<div id="code_area" class="mt-2">
-			<div id="autosave_code_in_time_div" class="text-muted fst-italic mb-2 d-none">
-				<#LANG_CODEEDITOR_AUTOSAVE_CODE#> <span id="autosave_code_in_time"></span>. <#LANG_CODEEDITOR_AUTOSAVE_CODE_HELP#>
-			</div>
-			<textarea name="code" id="code" rows="24" cols="100" class="form-control">[#SCRIPT#]</textarea>
 		</div>
 	</div>
 
