@@ -9,44 +9,88 @@
 	<div class="alert alert-danger"><#LANG_FILLOUT_REQURED#></div>
 	[#endif ERR_CODE#]
 
+	<style>
+		.keenetic-connection-table {
+			min-width: 1000px;
+		}
+		.keenetic-connection-table th,
+		.keenetic-connection-table td {
+			vertical-align: top;
+		}
+		.keenetic-connection-main {
+			min-width: 260px;
+			width: 30%;
+		}
+		.keenetic-connection-meta {
+			display: flex;
+			flex-wrap: wrap;
+			gap: .35rem .75rem;
+			margin-top: .45rem;
+			font-size: .875rem;
+		}
+		.keenetic-connection-state {
+			min-width: 190px;
+			width: 18%;
+		}
+		.keenetic-connection-state .badge {
+			white-space: normal;
+			line-height: 1.15;
+		}
+		.keenetic-bindings {
+			min-width: 520px;
+			width: 42%;
+		}
+		.keenetic-bindings .md-linkedobject-field {
+			display: block;
+			width: 100% !important;
+			max-width: 100%;
+			margin-bottom: .6rem;
+		}
+		.keenetic-bindings .md-linkedobject-field:last-child {
+			margin-bottom: 0;
+		}
+		.keenetic-updated {
+			min-width: 150px;
+			width: 10%;
+			font-size: .875rem;
+		}
+	</style>
+
 	<div class="table-responsive">
-		<table class="table table-striped table-hover align-middle">
+		<table class="table table-striped table-hover align-middle keenetic-connection-table">
 			<thead>
 				<tr>
-					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=cnct&sortby=TITLE"><#LANG_TITLE#></a></th>
-					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=cnct&sortby=STATE">Включено</a></th>
-					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=cnct&sortby=STATUS">Статус</a></th>
-					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=cnct&sortby=ADDRESS">Адрес</a></th>
-					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=cnct&sortby=TYPE">Тип</a></th>
-					<th style="min-width: 220px;"><#LANG_LINKED_OBJECT#></th>
-					<th style="min-width: 220px;"><#LANG_LINKED_PROPERTY#></th>
-					<th style="min-width: 220px;"><#LANG_METHOD#></th>
+					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=cnct&sortby=TITLE">Подключение</a></th>
+					<th><a href="?data_source=&view_mode=edit_keenetic_routers&id=<#ID#>&tab=cnct&sortby=STATUS">Состояние</a></th>
+					<th>Привязки</th>
 					<th><#LANG_UPDATED#></th>
 				</tr>
 			</thead>
 			<tbody>
 				[#begin PROPERTIES#]
 				<tr>
-					<td>[#TITLE#]</td>
-					<td>
-						<div class="form-check form-switch mb-0">
+					<td class="keenetic-connection-main">
+						<div class="fw-semibold">[#TITLE#]</div>
+						<div class="keenetic-connection-meta text-muted">
+							[#if ADDRESS!=""#]<span>Адрес: <span class="text-body">[#ADDRESS#]</span></span>[#endif#]
+							[#if TYPE!=""#]<span>Тип: <span class="text-body">[#TYPE#]</span></span>[#endif#]
+						</div>
+					</td>
+					<td class="keenetic-connection-state">
+						<div class="form-check form-switch mb-2">
 							<input class="form-check-input" id="state[#ID#]" type="checkbox" [#if STATE="1"#] checked[#endif#] data-keenetic-connection="[#ID#]">
 							<label class="form-check-label visually-hidden" for="state[#ID#]">[#TITLE#]</label>
 						</div>
-					</td>
-					<td>
 						[#if STATUS>0#]
 							<span class="badge text-bg-success" title="Статус подключения">CONNECTED</span>
 						[#else#]
 							<span class="badge text-bg-danger" title="Статус подключения">DISCONNECTED</span>
 						[#endif STATUS#]
 					</td>
-					<td>[#ADDRESS#]</td>
-					<td>[#TYPE#]</td>
-					<td>[#module name="linkedobject" object_field="linked_object<#PROPERTIES.ID#>" uniq="keenetic_connection<#PROPERTIES.ID#>" width="100%"#]</td>
-					<td>[#module name="linkedobject" property_field="linked_property<#PROPERTIES.ID#>" uniq="keenetic_connection<#PROPERTIES.ID#>" width="100%"#]</td>
-					<td>[#module name="linkedobject" method_field="linked_method<#PROPERTIES.ID#>" uniq="keenetic_connection<#PROPERTIES.ID#>" width="100%"#]</td>
-					<td class="text-nowrap">[#UPDATED#]</td>
+					<td class="keenetic-bindings">
+						[#module name="linkedobject" object_field="linked_object<#PROPERTIES.ID#>" property_field="linked_property<#PROPERTIES.ID#>" method_field="linked_method<#PROPERTIES.ID#>" uniq="keenetic_connection<#PROPERTIES.ID#>" width="100%"#]
+					</td>
+					<td class="keenetic-updated text-muted">[#UPDATED#]</td>
 				</tr>
 				[#end PROPERTIES#]
 			</tbody>
