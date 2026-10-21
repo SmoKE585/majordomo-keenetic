@@ -231,15 +231,15 @@ $keenetic->changeConnection('Wireguard0', 2);
 Проверки без базы данных:
 
 ```bash
-php tests/helpers_test.php
-php tests/class_logic_test.php
-MAJORDOMO_ROOT=/path/to/majordomo php tests/template_smoke.php
+php modules/keenetic/tests/helpers_test.php
+php modules/keenetic/tests/class_logic_test.php
+MAJORDOMO_ROOT=/path/to/majordomo php modules/keenetic/tests/template_smoke.php
 ```
 
-`tests/template_smoke.php` рендерит все страницы модуля через настоящий
-`jTemplate` из MajorDoMo и проверяет, что в разметке не осталось шаблонных
-тегов. С ключом `--preview-dir=...` он сохраняет статические HTML-страницы
-для просмотра вёрстки без запуска MajorDoMo.
+`modules/keenetic/tests/template_smoke.php` рендерит все страницы модуля через
+настоящий `jTemplate` из MajorDoMo и проверяет, что в разметке не осталось
+шаблонных тегов. С ключом `--preview-dir=...` он сохраняет статические
+HTML-страницы для просмотра вёрстки без запуска MajorDoMo.
 
 ## Лицензия
 

@@ -1,4 +1,5 @@
 <?php
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 /**
  * Local template smoke test for the Keenetic module.
  * Renders every admin view with representative data through jTemplate and
@@ -7,14 +8,14 @@
 error_reporting(E_ALL & ~E_DEPRECATED);
 
 define('ALTERNATIVE_TEMPLATES', 'templates_alt');
-define('DIR_MODULES', dirname(__DIR__) . '/modules/');
+define('DIR_MODULES', dirname(__DIR__, 3) . '/modules/');
 define('SETTINGS_SITE_LANGUAGE', 'ru');
 
 $core = getenv('MAJORDOMO_ROOT');
 if (!$core) {
     $candidates = array(
-        dirname(__DIR__, 2) . '/___majordomo',
-        dirname(__DIR__, 2) . '/majordomo',
+        dirname(__DIR__, 4) . '/___majordomo',
+        dirname(__DIR__, 4) . '/majordomo',
         dirname(__DIR__) . '/majordomo',
     );
     foreach ($candidates as $candidate) {
@@ -53,7 +54,7 @@ class DummyOwner
     }
 }
 
-$src = dirname(__DIR__) . '/templates/keenetic';
+$src = dirname(__DIR__, 3) . '/templates/keenetic';
 $tmp = sys_get_temp_dir() . '/keenetic-tpl-' . getmypid();
 @mkdir($tmp, 0777, true);
 

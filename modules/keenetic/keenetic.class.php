@@ -727,17 +727,17 @@ class keenetic extends module
         $out['PASSWORD'] = '';
         $out['NO_UPDATE'] = (int)$field('NO_UPDATE', !empty($router['NO_UPDATE']) ? 1 : 0);
         $out['AUTO_REBOOT'] = (int)$field('AUTO_REBOOT', (int)($router['AUTO_REBOOT'] ?? 0));
-        $out['LOGIN'] = (string)$field('LOGIN', (string)($router['LOGIN'] ?? ''));
-        $out['ADDRESS'] = (string)$field('ADDRESS', (string)($router['ADDRESS'] ?? ''));
-        $out['TITLE'] = (string)$field('TITLE', (string)($router['TITLE'] ?? ''));
-        $out['MODEL'] = (string)($router['MODEL'] ?? '');
-        $out['FIRMWARE'] = (string)($router['FIRMWARE'] ?? '');
-        $out['NEW_FIRMWARE'] = (string)($router['NEW_FIRMWARE'] ?? '');
-        $out['SERIAL'] = (string)($router['SERIAL'] ?? '');
+        $out['LOGIN'] = keenetic_h((string)$field('LOGIN', (string)($router['LOGIN'] ?? '')));
+        $out['ADDRESS'] = keenetic_h((string)$field('ADDRESS', (string)($router['ADDRESS'] ?? '')));
+        $out['TITLE'] = keenetic_h((string)$field('TITLE', (string)($router['TITLE'] ?? '')));
+        $out['MODEL'] = keenetic_h($router['MODEL'] ?? '');
+        $out['FIRMWARE'] = keenetic_h($router['FIRMWARE'] ?? '');
+        $out['NEW_FIRMWARE'] = keenetic_h($router['NEW_FIRMWARE'] ?? '');
+        $out['SERIAL'] = keenetic_h($router['SERIAL'] ?? '');
         $out['REQ_PERIOD'] = (int)$field('REQ_PERIOD', (int)($router['REQ_PERIOD'] ?? 0));
-        $out['UPDATED_HUMAN'] = keenetic_relative_time($router['UPDATED'] ?? '');
-        $out['UPDATED_TITLE'] = keenetic_datetime($router['UPDATED'] ?? '');
-        $out['HREF_FW'] = keenetic_safe_url($router['HREF_FW'] ?? '');
+        $out['UPDATED_HUMAN'] = keenetic_h(keenetic_relative_time($router['UPDATED'] ?? ''));
+        $out['UPDATED_TITLE'] = keenetic_h(keenetic_datetime($router['UPDATED'] ?? ''));
+        $out['HREF_FW'] = keenetic_h(keenetic_safe_url($router['HREF_FW'] ?? ''));
         $out['UPDATE'] = keenetic_firmware_update($router) ? 1 : 0;
         $this->tab = $tab;
 
@@ -767,9 +767,9 @@ class keenetic extends module
 
         if ($tab === 'cnct') {
             $out['CONNECTIONS'] = $this->getRouterConnections($id);
-            $out['CNCT_SCRIPT'] = (string)($router['CNCT_SCRIPT'] ?? '');
+            $out['CNCT_SCRIPT'] = keenetic_h($router['CNCT_SCRIPT'] ?? '');
             if (!empty($out['ERR_CODE']) && isset($out['_CNCT_SCRIPT'])) {
-                $out['CNCT_SCRIPT'] = (string)$out['_CNCT_SCRIPT'];
+                $out['CNCT_SCRIPT'] = keenetic_h($out['_CNCT_SCRIPT']);
             }
             $this->prepareCodeEditor($out, 'keenetic_cnct_' . $id);
             $out['TAB'] = 'cnct';
@@ -793,9 +793,9 @@ class keenetic extends module
      */
     private function renderNewRouter(&$out)
     {
-        $out['TITLE'] = (string)gr('title');
-        $out['ADDRESS'] = (string)gr('address');
-        $out['LOGIN'] = (string)gr('login');
+        $out['TITLE'] = keenetic_h((string)gr('title'));
+        $out['ADDRESS'] = keenetic_h((string)gr('address'));
+        $out['LOGIN'] = keenetic_h((string)gr('login'));
         $out['PASSWORD'] = '';
         $out['PASSWORD_SET'] = 0;
         $out['REQ_PERIOD'] = gr('period') !== null ? max(0, (int)gr('period')) : 5;
@@ -886,7 +886,7 @@ class keenetic extends module
 
         if ($errors) {
             $out['ERR'] = 1;
-            $out['ERR_ALERT'] = implode(' ', $errors);
+            $out['ERR_ALERT'] = keenetic_h(implode(' ', $errors));
             return false;
         }
 
@@ -1086,6 +1086,13 @@ class keenetic extends module
             $row['ADMIN_LABEL'] = $state['admin_label'];
             $row['LINK_STATE'] = $state['link_state'];
             $row['LINK_LABEL'] = $state['link_label'];
+
+            // The linkedobject component reads its initial values from
+            // $GLOBALS[<field name>]; the field names are built from the row ID.
+            $GLOBALS['linked_object' . (int)$row['ID']] = (string)($row['LINKED_OBJECT'] ?? '');
+            $GLOBALS['linked_property' . (int)$row['ID']] = (string)($row['LINKED_PROPERTY'] ?? '');
+            $GLOBALS['linked_method' . (int)$row['ID']] = (string)($row['LINKED_METHOD'] ?? '');
+
             $row['BINDING'] = keenetic_binding_label(
                 $row['LINKED_OBJECT'] ?? '',
                 $row['LINKED_PROPERTY'] ?? '',
@@ -1383,8 +1390,8 @@ class keenetic extends module
             'IP' => keenetic_h($inet['IP'] ?? ''),
             'STATUS_TEXT' => $statusText,
             'STATUS_STATE' => $statusState,
-            'UPDATED_HUMAN' => keenetic_relative_time($inet['UPDATED'] ?? ''),
-            'UPDATED_TITLE' => keenetic_datetime($inet['UPDATED'] ?? ''),
+            'UPDATED_HUMAN' => keenetic_h(keenetic_relative_time($inet['UPDATED'] ?? '')),
+            'UPDATED_TITLE' => keenetic_h(keenetic_datetime($inet['UPDATED'] ?? '')),
             'LOG_HTML' => !empty($inet['LOG']) ? nl2br(keenetic_h($inet['LOG'])) : '',
         );
     }
@@ -1507,6 +1514,11 @@ class keenetic extends module
         $out['LINKED_OBJECT'] = keenetic_h($deviceForm['LINKED_OBJECT'] ?? ($device['LINKED_OBJECT'] ?? ''));
         $out['LINKED_PROPERTY'] = keenetic_h($deviceForm['LINKED_PROPERTY'] ?? ($device['LINKED_PROPERTY'] ?? ''));
         $out['LINKED_METHOD'] = keenetic_h($deviceForm['LINKED_METHOD'] ?? ($device['LINKED_METHOD'] ?? ''));
+
+        // The linkedobject component reads initial values from globals.
+        $GLOBALS['linked_object'] = (string)($deviceForm['LINKED_OBJECT'] ?? ($device['LINKED_OBJECT'] ?? ''));
+        $GLOBALS['linked_property'] = (string)($deviceForm['LINKED_PROPERTY'] ?? ($device['LINKED_PROPERTY'] ?? ''));
+        $GLOBALS['linked_method'] = (string)($deviceForm['LINKED_METHOD'] ?? ($device['LINKED_METHOD'] ?? ''));
         $out['SCRIPT'] = keenetic_h($submittedScript !== null ? $submittedScript : ($device['SCRIPT'] ?? ''));
         $out['LOG_HTML'] = '';
         if (!empty($device['LOG'])) {

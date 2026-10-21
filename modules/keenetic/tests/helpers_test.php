@@ -1,8 +1,9 @@
 <?php
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 /**
  * Helper unit checks for the Keenetic module (no database required).
  */
-require dirname(__DIR__) . '/modules/keenetic/keenetic_helpers.inc.php';
+require dirname(__DIR__) . '/keenetic_helpers.inc.php';
 
 $failed = 0;
 function check($condition, $message)

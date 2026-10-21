@@ -1,12 +1,13 @@
 <?php
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 /**
  * Pure-logic checks for keenetic.class.php (no database, no HTTP).
  */
 error_reporting(E_ALL);
 
-define('DIR_MODULES', dirname(__DIR__) . '/modules/');
-define('DIR_TEMPLATES', dirname(__DIR__) . '/templates/');
-define('ROOT', dirname(__DIR__) . '/');
+define('DIR_MODULES', dirname(__DIR__, 3) . '/modules/');
+define('DIR_TEMPLATES', dirname(__DIR__, 3) . '/templates/');
+define('ROOT', dirname(__DIR__, 3) . '/');
 
 class module
 {
@@ -31,7 +32,7 @@ class module
     public function redirect($url) {}
 }
 
-require dirname(__DIR__) . '/modules/keenetic/keenetic.class.php';
+require dirname(__DIR__) . '/keenetic.class.php';
 
 $failed = 0;
 function check($condition, $message)

@@ -42,5 +42,5 @@
 
 - логика разбита на `keenetic.class.php` и `keenetic_helpers.inc.php`;
 - удалены неиспользуемые include-файлы и старые шаблоны;
-- добавлены тесты `tests/helpers_test.php`, `tests/class_logic_test.php`, `tests/template_smoke.php`;
+- добавлены тесты `modules/keenetic/tests/helpers_test.php`, `modules/keenetic/tests/class_logic_test.php`, `modules/keenetic/tests/template_smoke.php`;
 - добавлен `.gitignore`, IDE-метаданные исключены из репозитория.
