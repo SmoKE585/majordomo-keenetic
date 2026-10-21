@@ -21,10 +21,6 @@ body.md-admin-shell .md-keenetic-page .md-keenetic-kpi-total {
 
 /* Router table ------------------------------------------------------- */
 
-body.md-admin-shell .md-keenetic-page .md-keenetic-table-wrap .md-table__scroll {
-  contain: paint;
-}
-
 body.md-admin-shell .md-keenetic-page .md-keenetic-cell {
   align-items: flex-start;
 }

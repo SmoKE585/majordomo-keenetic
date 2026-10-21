@@ -20,7 +20,7 @@ require_once __DIR__ . '/keenetic_helpers.inc.php';
 
 class keenetic extends module
 {
-    const VERSION = '0.5';
+    const VERSION = '0.5.2';
 
     /** @var bool Debug logging to DebMes (`LOG_DEBMES`). */
     public $debug = false;
