@@ -1,0 +1,20 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+nbproject/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and local artifacts
+*.log
+*.tmp
+*.bak
+*.zip
+composer.lock
+vendor/
+
+# Node (module assets are plain files, no build step)
+node_modules/
