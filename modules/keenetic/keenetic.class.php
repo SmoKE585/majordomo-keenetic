@@ -20,7 +20,7 @@ require_once __DIR__ . '/keenetic_helpers.inc.php';
 
 class keenetic extends module
 {
-    const VERSION = '0.5.2';
+    const VERSION = '0.5.3';
 
     /** @var bool Debug logging to DebMes (`LOG_DEBMES`). */
     public $debug = false;
@@ -2951,6 +2951,13 @@ class keenetic extends module
         try {
             eval($code);
             return true;
+        } catch (ParseError $e) {
+            $this->WriteLog('Ошибка в коде (' . $context . '): ' . $e->getMessage());
+            registerError(
+                'Keenetic',
+                'Syntax error in code' . ($context ? ' (' . $context . ')' : '') . ': ' . $e->getMessage()
+            );
+            return false;
         } catch (Throwable $e) {
             $this->WriteLog('Ошибка выполнения кода (' . $context . '): ' . $e->getMessage());
             registerError(
@@ -2964,27 +2971,165 @@ class keenetic extends module
     /**
      * Check PHP syntax of a user handler.
      *
+     * The global php_syntax_error() is deliberately not used here: it guesses
+     * the language of a snippet and treats a valid short handler such as
+     * "if($status){ ... }" (no semicolons) as Python. On hosts without the
+     * python binary that check returns "sh: python: not found" and the module
+     * rejects a valid handler. Handlers in this module are always PHP, so lint
+     * them as PHP and cache the verdict for the lifetime of the process.
+     *
      * @param string $code
      * @return string error message or an empty string
      */
     public function getUserCodeError($code)
     {
+        static $cache = array();
+
         $code = (string)$code;
-        if (trim($code) === '' || !function_exists('php_syntax_error')) {
+        if (trim($code) === '') {
             return '';
         }
-        $errors = php_syntax_error($code);
-        if (!$errors) {
+
+        $key = md5($code);
+        if (!array_key_exists($key, $cache)) {
+            $cache[$key] = $this->lintPhpCode($code);
+        }
+        return $cache[$key];
+    }
+
+    /**
+     * Lint a PHP snippet with the CLI binary.
+     *
+     * @param string $code
+     * @return string error message or an empty string
+     */
+    private function lintPhpCode($code)
+    {
+        if (!function_exists('exec')) {
             return '';
         }
-        $line = preg_replace('/[^0-9]/', '', substr(stristr((string)$errors, 'php on line ') ?: '', 0, 18));
-        $parts = explode('Parse error: ', htmlspecialchars(strip_tags(nl2br((string)$errors))));
-        if (!isset($parts[1])) {
-            return trim(strip_tags((string)$errors));
+
+        $file = @tempnam(sys_get_temp_dir(), 'keenetic-lint-');
+        if ($file === false) {
+            return '';
         }
-        $parts = explode('Errors parsing', $parts[1]);
-        $parts = explode(' in ', $parts[0]);
-        return trim($parts[0]) . ($line !== '' ? ' on line ' . $line : '');
+
+        // php -l only needs the opening tag; keeping it on the same line
+        // preserves the user's line numbers in the error message.
+        if (@file_put_contents($file, '<?php ' . $code) === false) {
+            @unlink($file);
+            return '';
+        }
+
+        $binary = $this->findPhpCli();
+        if ($binary === '') {
+            @unlink($file);
+            return '';
+        }
+
+        $command = escapeshellarg($binary) . ' -d display_errors=1 -l ' . escapeshellarg($file) . ' 2>&1';
+        $output = array();
+        $status = 0;
+        @exec($command, $output, $status);
+        @unlink($file);
+
+        if ($status === 0) {
+            return '';
+        }
+
+        $raw = trim(implode("\n", $output));
+        if ($raw === '') {
+            return '';
+        }
+
+        // A missing or unusable PHP binary is an environment problem, not a
+        // syntax error in the handler. Let eval() report a real parse error.
+        if (preg_match('/(?:not found|not recognized|No such file|Could not open input file|Permission denied)/i', $raw)) {
+            return '';
+        }
+
+        return $this->formatPhpLintError($raw);
+    }
+
+    /**
+     * Pick a PHP CLI binary instead of the web SAPI (php-fpm, php-cgi, httpd).
+     *
+     * @return string binary path or an empty string
+     */
+    private function findPhpCli()
+    {
+        static $binary = null;
+        if ($binary !== null) {
+            return $binary;
+        }
+
+        $candidates = array();
+        if (defined('PHP_BINDIR') && PHP_BINDIR !== '') {
+            $dir = rtrim(PHP_BINDIR, '/\\') . DIRECTORY_SEPARATOR;
+            if (DIRECTORY_SEPARATOR === '\\') {
+                $candidates[] = $dir . 'php.exe';
+            } else {
+                $candidates[] = $dir . 'php' . PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+                $candidates[] = $dir . 'php';
+            }
+        }
+        if (defined('PATH_TO_PHP') && PATH_TO_PHP !== '') {
+            $candidates[] = PATH_TO_PHP;
+        }
+        if (defined('PHP_BINARY') && PHP_BINARY !== '') {
+            $candidates[] = PHP_BINARY;
+        }
+        $candidates[] = 'php';
+
+        $binary = '';
+        foreach ($candidates as $candidate) {
+            if ($candidate === 'php') {
+                $binary = 'php';
+                break;
+            }
+            // Skip php-fpm/php-cgi/httpd: they do not support -l.
+            if (!preg_match('/^php[0-9.]*(?:\.exe)?$/i', basename($candidate))) {
+                continue;
+            }
+            if (is_file($candidate)) {
+                $binary = $candidate;
+                break;
+            }
+        }
+        return $binary;
+    }
+
+    /**
+     * Turn php -l output into the short message expected by the UI.
+     *
+     * @param string $raw
+     * @return string
+     */
+    private function formatPhpLintError($raw)
+    {
+        $line = 0;
+        if (preg_match_all('/\bon line\s+(\d+)/i', $raw, $matches)) {
+            // The last "on line" is the line reported by PHP; an "Unclosed
+            // '{' on line 1" message also mentions the opening line.
+            $line = (int)end($matches[1]);
+        }
+
+        $message = preg_replace('/^.*?(?:Parse|Fatal) error:\s*/is', '', $raw);
+        $message = preg_replace('/\s+in\s+.*?\s+on line\s+\d+.*$/is', '', $message);
+        $message = preg_replace('/\s*Errors parsing\s+.*$/is', '', $message);
+        $message = trim(strip_tags((string)$message));
+
+        if ($message === '') {
+            $message = 'PHP syntax error';
+        }
+
+        // "Unclosed '{' on line 1" already names the useful line (where the
+        // block was opened); do not append the end-of-file line as well.
+        if (preg_match('/\bon line\s+\d+/i', $message)) {
+            return $message;
+        }
+
+        return $message . ($line > 0 ? ' on line ' . $line : '');
     }
 
     /**

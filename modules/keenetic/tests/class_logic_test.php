@@ -121,4 +121,11 @@ check($wan['STATE'] === 0, 'no active WAN');
 check($keenetic->isIP('10.0.0.1') === true, 'isIP true');
 check($keenetic->isIP('example.com') === false, 'isIP false');
 
+$defaultHandler = "if(\$status){ // устройство появилось в сети\n\n}\nelse{ // устройство отключилось от сети\n\n}";
+check($keenetic->getUserCodeError($defaultHandler) === '', 'default PHP handler passes syntax check');
+check($keenetic->executeUserCode($defaultHandler, array('status' => 1)) === true, 'default PHP handler executes');
+check($keenetic->getUserCodeError("if (\$status) {\n    echo 'online';\n}") === '', 'valid PHP handler passes syntax check');
+$brokenHandler = $keenetic->getUserCodeError("if (\$status) {\n    echo 'online';\n");
+check($brokenHandler !== '' && strpos($brokenHandler, 'on line') !== false, 'broken PHP handler reports a line');
+
 exit($failed === 0 ? 0 : 1);
